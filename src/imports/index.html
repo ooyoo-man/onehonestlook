@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>One Honest Look</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:       #f6f3ee;
+  --bg2:      #edeae3;
+  --bg3:      #e4e0d8;
+  --ink:      #1e1c18;
+  --ink2:     #3c3a34;
+  --ink3:     #78756c;
+  --ink4:     #a9a59c;
+  --rule:     rgba(30,28,24,0.09);
+  --rule2:    rgba(30,28,24,0.05);
+  --gold:     #8a6c3e;
+  --gold-lt:  #c4a06e;
+  --gold-bg:  rgba(138,108,62,0.09);
+  --red:      #8c3a2e;
+  --red-bg:   rgba(140,58,46,0.08);
+  --red-ln:   rgba(140,58,46,0.22);
+  --green:    #2e6645;
+  --green-bg: rgba(46,102,69,0.08);
+  --green-ln: rgba(46,102,69,0.22);
+  --blue:     #2e4f8c;
+  --blue-bg:  rgba(46,79,140,0.08);
+  --blue-ln:  rgba(46,79,140,0.22);
+  --font-h:   'Lora', Georgia, serif;
+  --font-b:   'Jost', sans-serif;
+  --sh:       0 2px 12px rgba(30,28,24,0.08);
+  --sh-lg:    0 8px 40px rgba(30,28,24,0.14);
+}
+body { background:var(--bg); color:var(--ink); font-family:var(--font-b); height:100vh; overflow:hidden; display:flex; flex-direction:column; }
+body::after { content:''; position:fixed; inset:0; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.022'/%3E%3C/svg%3E"); pointer-events:none; z-index:9999; }
+
+/* ─ HEADER ─ */
+header { flex-shrink:0; display:flex; align-items:center; justify-content:space-between; padding:0 1.5rem; height:56px; border-bottom:1px solid var(--rule); background:var(--bg); z-index:100; gap:1rem; }
+.logo { display:flex; align-items:center; gap:0.55rem; flex-shrink:0; text-decoration:none; cursor:default; }
+.logo-mark { width:26px; height:26px; flex-shrink:0; }
+.logo-text { font-family:var(--font-b); font-size:0.78rem; font-weight:400; letter-spacing:0.2em; text-transform:uppercase; color:var(--ink2); }
+.nav-tabs { display:flex; background:var(--bg2); border-radius:7px; padding:3px; border:1px solid var(--rule); }
+.nav-tab { font-family:var(--font-b); font-size:0.71rem; font-weight:500; padding:0.3rem 0.82rem; border-radius:5px; border:none; background:none; color:var(--ink3); cursor:pointer; transition:all 0.14s; letter-spacing:0.04em; white-space:nowrap; }
+.nav-tab.active { background:var(--bg); color:var(--ink); box-shadow:0 1px 3px rgba(30,28,24,0.09); }
+.hdr-right { display:flex; align-items:center; gap:0.5rem; flex-shrink:0; }
+.btn { font-family:var(--font-b); font-size:0.71rem; font-weight:500; padding:0.34rem 0.78rem; border-radius:6px; border:1px solid var(--rule); background:var(--bg); color:var(--ink2); cursor:pointer; letter-spacing:0.03em; transition:all 0.13s; white-space:nowrap; }
+.btn:hover { background:var(--bg2); border-color:rgba(30,28,24,0.16); }
+.btn.gold { background:var(--gold); color:#fff; border-color:var(--gold); }
+.btn.gold:hover { background:#7a5e35; }
+
+/* ─ VIEWS ─ */
+.view { display:none; flex:1; overflow:hidden; }
+.view.active { display:flex; }
+
+/* ══ MAP ══ */
+#view-map { flex-direction:column; }
+#canvas-wrap { flex:1; position:relative; overflow:hidden; }
+#canvas { position:absolute; inset:0; }
+#lines-svg { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:1; }
+.you-ring { position:absolute; border-radius:50%; transform:translate(-50%,-50%); background:transparent; border:1px solid var(--rule2); pointer-events:none; z-index:0; }
+.you-node { position:absolute; width:68px; height:68px; border-radius:50%; background:var(--bg); border:1.5px solid var(--gold-lt); display:flex; align-items:center; justify-content:center; transform:translate(-50%,-50%); z-index:20; pointer-events:none; box-shadow:0 0 0 5px rgba(138,108,62,0.06),var(--sh); }
+.you-node span { font-family:var(--font-h); font-size:0.82rem; font-style:italic; color:var(--gold); }
+.connector { stroke:var(--rule); stroke-width:1; fill:none; transition:stroke 0.2s; }
+.connector.hl { stroke:var(--gold-lt); stroke-width:1.5; }
+.bubble { position:absolute; border-radius:100px; padding:0.33rem 0.78rem; font-size:0.74rem; font-weight:400; cursor:grab; user-select:none; transform:translate(-50%,-50%); z-index:10; display:flex; align-items:center; gap:0.38rem; white-space:nowrap; transition:box-shadow 0.16s; animation:popIn 0.28s cubic-bezier(0.34,1.45,0.64,1) both; border:1px solid transparent; }
+.bubble:hover { box-shadow:var(--sh); }
+.bubble:active { cursor:grabbing; }
+@keyframes popIn { from{opacity:0;transform:translate(-50%,-50%) scale(0.4)} to{opacity:1;transform:translate(-50%,-50%) scale(1)} }
+.bubble.neutral  { background:var(--bg);  border-color:var(--rule);     color:var(--ink2); }
+.bubble.positive { background:var(--green-bg); border-color:var(--green-ln); color:var(--green); }
+.bubble.negative { background:var(--red-bg);   border-color:var(--red-ln);   color:var(--red); }
+.bubble.habit    { background:var(--blue-bg);  border-color:var(--blue-ln);  color:var(--blue); }
+.b-dot { width:5px; height:5px; border-radius:50%; flex-shrink:0; }
+.bubble.positive .b-dot { background:var(--green); }
+.bubble.negative .b-dot { background:var(--red); }
+.bubble.habit    .b-dot { background:var(--blue); }
+.bubble.neutral  .b-dot { background:var(--ink4); }
+.del-btn { width:13px; height:13px; border-radius:50%; background:none; border:none; color:var(--ink4); font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity 0.12s,color 0.12s; padding:0; flex-shrink:0; }
+.bubble:hover .del-btn { opacity:1; }
+.del-btn:hover { color:var(--red); }
+.note-badge { font-size:8px; background:var(--gold-bg); color:var(--gold); border-radius:3px; padding:1px 4px; border:1px solid rgba(138,108,62,0.18); cursor:pointer; flex-shrink:0; transition:background 0.12s; }
+.note-badge:hover { background:rgba(138,108,62,0.2); }
+.note-badge.yn-yes { background:var(--green-bg); color:var(--green); border-color:var(--green-ln); }
+.note-badge.yn-no  { background:var(--red-bg);   color:var(--red);   border-color:var(--red-ln); }
+#map-hint { position:absolute; top:50%; left:50%; transform:translate(-50%,calc(-50% + 62px)); text-align:center; pointer-events:none; z-index:2; transition:opacity 0.4s; }
+#map-hint p { font-size:0.74rem; color:var(--ink4); line-height:2.1; }
+#stats-strip { flex-shrink:0; display:flex; align-items:center; gap:1.4rem; padding:0 1.5rem; height:35px; border-top:1px solid var(--rule2); background:var(--bg2); font-size:0.68rem; color:var(--ink3); letter-spacing:0.04em; }
+.stat-item { display:flex; align-items:center; gap:0.32rem; }
+.s-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+.stat-val { font-weight:500; color:var(--ink); }
+#add-bar { flex-shrink:0; display:flex; align-items:center; gap:0.55rem; padding:0.65rem 1.5rem; border-top:1px solid var(--rule); background:var(--bg); flex-wrap:wrap; }
+#add-input { font-family:var(--font-b); font-size:0.78rem; background:var(--bg2); border:1px solid var(--rule); color:var(--ink); border-radius:7px; padding:0.4rem 0.82rem; width:200px; outline:none; transition:border-color 0.14s; }
+#add-input:focus { border-color:var(--gold-lt); }
+#add-input::placeholder { color:var(--ink4); }
+.cat-row { display:flex; gap:0.28rem; }
+.cat-chip { font-size:0.66rem; font-weight:500; padding:0.26rem 0.58rem; border-radius:100px; border:1px solid var(--rule); background:var(--bg2); color:var(--ink3); cursor:pointer; transition:all 0.12s; font-family:var(--font-b); }
+.cat-chip.active-neutral  { background:var(--bg); border-color:rgba(30,28,24,0.28); color:var(--ink); }
+.cat-chip.active-positive { background:var(--green-bg); border-color:var(--green-ln); color:var(--green); }
+.cat-chip.active-negative { background:var(--red-bg);   border-color:var(--red-ln);   color:var(--red); }
+.cat-chip.active-habit    { background:var(--blue-bg);  border-color:var(--blue-ln);  color:var(--blue); }
+.vr { width:1px; height:18px; background:var(--rule); flex-shrink:0; }
+
+/* ══ PROGRESS ══ */
+#view-progress { flex-direction:column; overflow:hidden; }
+.prog-scroll { flex:1; overflow-y:auto; padding:1.75rem 2rem 3rem; }
+.prog-scroll-inner { max-width:860px; margin:0 auto; }
+.sec-head { display:flex; align-items:flex-end; justify-content:space-between; gap:1rem; margin-bottom:1.4rem; flex-wrap:wrap; }
+.sec-title { font-family:var(--font-h); font-size:1.3rem; font-style:italic; color:var(--ink); }
+.sec-sub { font-size:0.72rem; color:var(--ink3); line-height:1.6; margin-top:0.15rem; }
+.subsec-label { font-size:0.65rem; font-weight:500; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink3); margin-bottom:0.9rem; }
+
+/* Month nav */
+.month-row { display:flex; align-items:center; gap:0.5rem; margin-bottom:1.3rem; }
+.month-btn { width:26px; height:26px; border-radius:50%; background:none; border:1px solid var(--rule); color:var(--ink3); cursor:pointer; font-size:0.8rem; display:flex; align-items:center; justify-content:center; transition:all 0.12s; }
+.month-btn:hover { background:var(--bg2); }
+.month-label { font-family:var(--font-h); font-size:0.9rem; font-style:italic; color:var(--ink); min-width:116px; text-align:center; }
+
+/* Tracker sections */
+.tracker-block { margin-bottom:2.2rem; padding-bottom:2.2rem; border-bottom:1px solid var(--rule2); }
+.tracker-block:last-child { border-bottom:none; }
+.tracker-head { display:flex; align-items:center; gap:0.55rem; margin-bottom:0.7rem; flex-wrap:wrap; }
+.tracker-name { font-size:0.82rem; font-weight:500; color:var(--ink); }
+.t-cat { font-size:0.62rem; padding:0.13rem 0.48rem; border-radius:100px; }
+.t-cat.positive { background:var(--green-bg); color:var(--green); }
+.t-cat.negative { background:var(--red-bg);   color:var(--red); }
+.t-cat.habit    { background:var(--blue-bg);  color:var(--blue); }
+.t-cat.neutral  { background:var(--bg2);      color:var(--ink3); }
+.tracker-score { font-size:0.68rem; color:var(--ink3); margin-left:auto; }
+.tracker-score strong { color:var(--ink); }
+
+/* Day grid */
+.day-grid { display:flex; flex-wrap:wrap; gap:3px; margin-bottom:0.6rem; }
+.day-cell { width:30px; height:30px; border-radius:5px; border:1px solid var(--rule); background:var(--bg2); display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; transition:all 0.12s; flex-shrink:0; position:relative; }
+.day-cell:hover:not(.future) { border-color:rgba(30,28,24,0.22); background:var(--bg3); }
+.day-num { font-size:0.54rem; color:var(--ink4); line-height:1; }
+.day-marker { font-size:0.68rem; line-height:1; margin-top:1px; }
+.day-cell.yn-yes { background:var(--green-bg); border-color:var(--green-ln); }
+.day-cell.yn-no  { background:var(--red-bg);   border-color:var(--red-ln); }
+.day-cell.future { opacity:0.32; cursor:default; pointer-events:none; }
+.day-cell.today  { outline:1.5px solid var(--gold-lt); outline-offset:1px; }
+.day-cell[data-note]::after { content:''; position:absolute; top:2px; right:2px; width:3px; height:3px; border-radius:50%; background:var(--gold); }
+
+/* Summary bar */
+.month-bar-row { display:flex; align-items:center; gap:0.65rem; margin-bottom:0.5rem; }
+.bar-wrap { flex:1; height:5px; background:var(--bg3); border-radius:100px; overflow:hidden; }
+.bar-fill { height:100%; border-radius:100px; transition:width 0.45s ease; }
+.bar-pct { font-size:0.68rem; font-weight:500; min-width:30px; text-align:right; }
+
+/* Notes list */
+.notes-list { margin-top:0.6rem; }
+.note-row { display:flex; gap:0.6rem; padding:0.38rem 0; border-bottom:1px solid var(--rule2); align-items:flex-start; }
+.note-row:last-child { border-bottom:none; }
+.note-date { font-size:0.62rem; color:var(--ink4); white-space:nowrap; min-width:68px; padding-top:1px; }
+.note-text { font-size:0.72rem; color:var(--ink2); line-height:1.55; flex:1; }
+.note-yn { font-size:0.63rem; font-weight:500; white-space:nowrap; }
+.note-yn.yes { color:var(--green); }
+.note-yn.no  { color:var(--red); }
+
+/* Snapshot cards */
+.snap-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(255px,1fr)); gap:0.8rem; }
+.snap-card { background:var(--bg); border:1px solid var(--rule); border-radius:10px; padding:1.05rem; position:relative; transition:box-shadow 0.16s; }
+.snap-card:hover { box-shadow:var(--sh); }
+.snap-date { font-size:0.62rem; color:var(--ink4); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.5rem; }
+.snap-name { font-family:var(--font-h); font-size:0.92rem; font-style:italic; color:var(--ink); margin-bottom:0.45rem; }
+.snap-note { font-size:0.7rem; color:var(--ink3); margin-bottom:0.65rem; line-height:1.6; font-style:italic; }
+.snap-bubbles { display:flex; flex-wrap:wrap; gap:0.28rem; margin-bottom:0.65rem; }
+.snap-tag { font-size:0.62rem; padding:0.13rem 0.45rem; border-radius:100px; }
+.snap-tag.neutral  { background:var(--bg2); color:var(--ink3); }
+.snap-tag.positive { background:var(--green-bg); color:var(--green); }
+.snap-tag.negative { background:var(--red-bg);   color:var(--red); }
+.snap-tag.habit    { background:var(--blue-bg);  color:var(--blue); }
+.snap-foot { display:flex; gap:0.65rem; font-size:0.64rem; color:var(--ink3); border-top:1px solid var(--rule2); padding-top:0.6rem; align-items:center; }
+.snap-del { position:absolute; top:0.7rem; right:0.7rem; background:none; border:none; font-size:0.65rem; color:var(--ink4); cursor:pointer; opacity:0; transition:opacity 0.12s,color 0.12s; }
+.snap-card:hover .snap-del { opacity:1; }
+.snap-del:hover { color:var(--red); }
+.snap-restore { font-size:0.64rem; color:var(--gold); background:none; border:none; cursor:pointer; font-family:var(--font-b); padding:0; text-decoration:underline; text-underline-offset:2px; margin-left:auto; }
+.empty-state { text-align:center; padding:3rem 1rem; color:var(--ink3); }
+.empty-state .ei { font-family:var(--font-h); font-size:1.6rem; font-style:italic; color:var(--ink4); display:block; margin-bottom:0.65rem; }
+.empty-state p { font-size:0.76rem; line-height:1.9; }
+
+/* ══ RESOURCES ══ */
+#view-resources { flex-direction:column; overflow:hidden; }
+.res-scroll { flex:1; overflow-y:auto; padding:1.75rem 2rem 3rem; }
+.res-scroll-inner { max-width:860px; margin:0 auto; }
+.res-filter-row { display:flex; gap:0.38rem; flex-wrap:wrap; margin-bottom:1.3rem; }
+.res-chip { font-size:0.68rem; padding:0.26rem 0.68rem; border-radius:100px; border:1px solid var(--rule); background:var(--bg2); color:var(--ink3); cursor:pointer; transition:all 0.12s; font-family:var(--font-b); }
+.res-chip.active,.res-chip:hover { background:var(--bg); border-color:rgba(30,28,24,0.22); color:var(--ink); box-shadow:0 1px 3px rgba(30,28,24,0.07); }
+.res-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(245px,1fr)); gap:0.85rem; }
+.res-card { background:var(--bg); border:1px solid var(--rule); border-radius:10px; padding:1.05rem; transition:box-shadow 0.16s,border-color 0.16s; cursor:pointer; position:relative; overflow:hidden; }
+.res-card::before { content:''; position:absolute; top:0; left:0; width:3px; height:100%; }
+.res-card.type-book::before     { background:var(--gold); }
+.res-card.type-article::before  { background:var(--green); }
+.res-card.type-practice::before { background:var(--blue); }
+.res-card.type-tool::before     { background:var(--red); }
+.res-card:hover { box-shadow:var(--sh); border-color:rgba(30,28,24,0.15); }
+.res-type { font-size:0.6rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink4); margin-bottom:0.3rem; font-weight:500; }
+.res-name { font-family:var(--font-h); font-size:0.9rem; color:var(--ink); margin-bottom:0.28rem; line-height:1.3; }
+.res-desc { font-size:0.7rem; color:var(--ink3); line-height:1.6; margin-bottom:0.7rem; }
+.res-tags { display:flex; flex-wrap:wrap; gap:0.25rem; }
+.res-pill { font-size:0.6rem; padding:0.12rem 0.42rem; border-radius:100px; background:var(--bg2); color:var(--ink3); border:1px solid var(--rule2); }
+
+/* ══ MODALS ══ */
+.backdrop { position:fixed; inset:0; background:rgba(28,26,22,0.4); z-index:1000; display:flex; align-items:center; justify-content:center; padding:1rem; animation:bfi 0.14s ease; }
+@keyframes bfi { from{opacity:0} to{opacity:1} }
+.modal { background:var(--bg); border-radius:13px; padding:1.5rem; width:100%; max-width:390px; box-shadow:var(--sh-lg); border:1px solid var(--rule); animation:bsu 0.17s cubic-bezier(0.25,0,0,1); }
+.modal.wide { max-width:460px; }
+@keyframes bsu { from{transform:translateY(10px);opacity:0} to{transform:translateY(0);opacity:1} }
+.m-title { font-family:var(--font-h); font-size:1.05rem; font-style:italic; margin-bottom:0.2rem; }
+.m-sub { font-size:0.7rem; color:var(--ink3); margin-bottom:1rem; line-height:1.6; }
+.m-field { margin-bottom:0.75rem; }
+.m-label { font-size:0.65rem; font-weight:500; color:var(--ink3); letter-spacing:0.08em; text-transform:uppercase; display:block; margin-bottom:0.28rem; }
+.m-input { width:100%; font-family:var(--font-b); font-size:0.78rem; background:var(--bg2); border:1px solid var(--rule); color:var(--ink); border-radius:7px; padding:0.42rem 0.72rem; outline:none; transition:border-color 0.13s; }
+.m-input:focus { border-color:var(--gold-lt); }
+.m-ta { resize:vertical; min-height:62px; line-height:1.6; }
+.m-actions { display:flex; gap:0.5rem; justify-content:flex-end; margin-top:1rem; }
+.yn-row { display:flex; gap:0.55rem; margin:0.75rem 0; }
+.yn-btn { flex:1; padding:0.58rem; border-radius:8px; border:1px solid var(--rule); background:var(--bg2); font-family:var(--font-b); font-size:0.78rem; font-weight:500; cursor:pointer; transition:all 0.13s; color:var(--ink3); }
+.yn-btn:hover { border-color:rgba(30,28,24,0.2); }
+.yn-btn.sel-yes { background:var(--green-bg); border-color:var(--green-ln); color:var(--green); }
+.yn-btn.sel-no  { background:var(--red-bg);   border-color:var(--red-ln);   color:var(--red); }
+
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--rule); border-radius:10px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg class="logo-mark" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="13" cy="13" r="12" stroke="#8a6c3e" stroke-width="1.2"/>
+      <circle cx="13" cy="13" r="6.5" stroke="#8a6c3e" stroke-width="0.9" stroke-dasharray="1.8 2.4"/>
+      <circle cx="13" cy="13" r="2" fill="#8a6c3e"/>
+    </svg>
+    <span class="logo-text">One Honest Look</span>
+  </div>
+
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchView('map',this)">Map</button>
+    <button class="nav-tab" onclick="switchView('progress',this)">Progress</button>
+    <button class="nav-tab" onclick="switchView('resources',this)">Resources</button>
+  </div>
+
+  <div class="hdr-right">
+    <button class="btn" onclick="openSnapModal()">Snapshot</button>
+    <button class="btn gold" onclick="exportAll()">Export</button>
+  </div>
+</header>
+
+<!-- MAP -->
+<div id="view-map" class="view active">
+  <div id="canvas-wrap">
+    <div id="canvas">
+      <svg id="lines-svg"></svg>
+      <div id="you-node" class="you-node"><span>you</span></div>
+      <div id="map-hint"><p>Add something honest about yourself below.<br>A habit, a quality, something you want to change.</p></div>
+    </div>
+  </div>
+  <div id="stats-strip">
+    <div class="stat-item"><div class="s-dot" style="background:var(--ink4)"></div>Total: <span class="stat-val" id="ct-all">0</span></div>
+    <div class="stat-item"><div class="s-dot" style="background:var(--green)"></div>Positive: <span class="stat-val" id="ct-pos">0</span></div>
+    <div class="stat-item"><div class="s-dot" style="background:var(--red)"></div>Needs work: <span class="stat-val" id="ct-neg">0</span></div>
+    <div class="stat-item"><div class="s-dot" style="background:var(--blue)"></div>Habits: <span class="stat-val" id="ct-hab">0</span></div>
+  </div>
+  <div id="add-bar">
+    <input id="add-input" type="text" placeholder="Add something honest about yourself…" maxlength="40">
+    <div class="cat-row">
+      <button class="cat-chip active-neutral" data-cat="neutral" onclick="selCat(this)">Neutral</button>
+      <button class="cat-chip" data-cat="positive" onclick="selCat(this)">Positive</button>
+      <button class="cat-chip" data-cat="negative" onclick="selCat(this)">Needs work</button>
+      <button class="cat-chip" data-cat="habit" onclick="selCat(this)">Habit</button>
+    </div>
+    <div class="vr"></div>
+    <button class="btn gold" onclick="addBubble()">Add →</button>
+    <button class="btn" onclick="clearAll()" style="color:var(--ink3)">Clear</button>
+  </div>
+</div>
+
+<!-- PROGRESS -->
+<div id="view-progress" class="view">
+  <div class="prog-scroll"><div class="prog-scroll-inner" id="prog-inner"></div></div>
+</div>
+
+<!-- RESOURCES -->
+<div id="view-resources" class="view">
+  <div class="res-scroll"><div class="res-scroll-inner">
+    <div style="margin-bottom:1.4rem">
+      <div class="sec-title">Resources</div>
+      <div style="font-size:0.72rem;color:var(--ink3);line-height:1.6;margin-top:0.15rem">Books, practices, and tools for what's on your map.</div>
+    </div>
+    <div class="res-filter-row" id="res-filters"></div>
+    <div class="res-grid" id="res-grid"></div>
+  </div></div>
+</div>
+
+<!-- SNAPSHOT MODAL -->
+<div id="snap-modal" class="backdrop" style="display:none" onclick="closeBD('snap-modal',event)">
+  <div class="modal">
+    <div class="m-title">Take a Snapshot</div>
+    <div class="m-sub">Freeze your map right now. Come back later to see what changed.</div>
+    <div class="m-field"><label class="m-label">Name</label><input class="m-input" id="sn-name" placeholder="e.g. March 2025, After the move…" maxlength="50"></div>
+    <div class="m-field"><label class="m-label">Note to your future self <span style="font-weight:300;text-transform:none;letter-spacing:0">(optional)</span></label><textarea class="m-input m-ta" id="sn-note" placeholder="What are you feeling right now? What do you want to change?"></textarea></div>
+    <div class="m-actions">
+      <button class="btn" onclick="closeBD('snap-modal')">Cancel</button>
+      <button class="btn gold" onclick="saveSnap()">Save snapshot</button>
+    </div>
+  </div>
+</div>
+
+<!-- DAILY NOTE MODAL -->
+<div id="note-modal" class="backdrop" style="display:none" onclick="closeBD('note-modal',event)">
+  <div class="modal wide">
+    <div class="m-title" id="note-m-title">Daily note</div>
+    <div class="m-sub" id="note-m-date"></div>
+    <div class="m-field">
+      <label class="m-label">Did you make progress today?</label>
+      <div class="yn-row">
+        <button class="yn-btn" id="yn-yes" onclick="selYN('yes')">✓ &nbsp;Yes</button>
+        <button class="yn-btn" id="yn-no"  onclick="selYN('no')">✕ &nbsp;No</button>
+      </div>
+    </div>
+    <div class="m-field"><label class="m-label">Note <span style="font-weight:300;text-transform:none;letter-spacing:0">(optional)</span></label><textarea class="m-input m-ta" id="note-text" placeholder="What happened? How did it go?"></textarea></div>
+    <div class="m-actions">
+      <button class="btn" onclick="closeBD('note-modal')">Cancel</button>
+      <button class="btn gold" onclick="saveNote()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESOURCE MODAL -->
+<div id="res-modal" class="backdrop" style="display:none" onclick="closeBD('res-modal',event)">
+  <div class="modal wide">
+    <div id="res-modal-body"></div>
+    <div class="m-actions"><button class="btn" onclick="closeBD('res-modal')">Close</button></div>
+  </div>
+</div>
+
+<script>
+// ── STATE ──
+let bubbles   = [];
+let snapshots = [];
+let logs      = {}; // key: `${bubbleId}_${YYYY-MM-DD}` → { yn, note }
+let selCatVal = 'neutral';
+let noteCtx   = null; // { bubbleId, dateStr }
+let curYN     = null;
+let viewMonth = { y: new Date().getFullYear(), m: new Date().getMonth() };
+
+// ── STORAGE ──
+const persist = () => {
+  try {
+    localStorage.setItem('ohl3-b', JSON.stringify(bubbles));
+    localStorage.setItem('ohl3-s', JSON.stringify(snapshots));
+    localStorage.setItem('ohl3-l', JSON.stringify(logs));
+  } catch(e) {}
+};
+const loadData = () => {
+  try {
+    const b = localStorage.getItem('ohl3-b');
+    const s = localStorage.getItem('ohl3-s');
+    const l = localStorage.getItem('ohl3-l');
+    if (b) bubbles   = JSON.parse(b);
+    if (s) snapshots = JSON.parse(s);
+    if (l) logs      = JSON.parse(l);
+  } catch(e) {}
+};
+
+// ── VIEWS ──
+function switchView(id, btn) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('view-' + id).classList.add('active');
+  btn.classList.add('active');
+  if (id === 'progress')  renderProgress();
+  if (id === 'resources') renderResources();
+}
+
+// ── CANVAS ──
+const canvasEl = document.getElementById('canvas');
+const youEl    = document.getElementById('you-node');
+const svgEl    = document.getElementById('lines-svg');
+const hintEl   = document.getElementById('map-hint');
+
+const ctr = () => {
+  const r = canvasEl.getBoundingClientRect();
+  return { x: r.width / 2, y: r.height / 2 };
+};
+
+function placeYou() {
+  const c = ctr();
+  youEl.style.left = c.x + 'px';
+  youEl.style.top  = c.y + 'px';
+  document.querySelectorAll('.you-ring').forEach(r => r.remove());
+  [125, 205, 285].forEach(r => {
+    const ring = document.createElement('div');
+    ring.className = 'you-ring';
+    ring.style.cssText = `left:${c.x}px;top:${c.y}px;width:${r*2}px;height:${r*2}px;margin-left:${-r}px;margin-top:${-r}px;`;
+    canvasEl.insertBefore(ring, canvasEl.firstChild);
+  });
+}
+
+function rndPos() {
+  const c = ctr();
+  const a = Math.random() * Math.PI * 2;
+  const r = 112 + Math.random() * 100;
+  return {
+    x: Math.max(55, Math.min(c.x*2-55, c.x + Math.cos(a)*r)),
+    y: Math.max(55, Math.min(c.y*2-55, c.y + Math.sin(a)*r))
+  };
+}
+
+function renderMap() {
+  document.querySelectorAll('.bubble').forEach(e => e.remove());
+  svgEl.innerHTML = '';
+  bubbles.forEach(b => drawBubble(b, false));
+  updateStats();
+  hintEl.style.opacity = bubbles.length === 0 ? '1' : '0';
+}
+
+function drawBubble(b, animate) {
+  const c = ctr();
+  const ln = document.createElementNS('http://www.w3.org/2000/svg','line');
+  ln.setAttribute('x1', c.x); ln.setAttribute('y1', c.y);
+  ln.setAttribute('x2', b.x); ln.setAttribute('y2', b.y);
+  ln.className = 'connector'; ln.id = 'ln-' + b.id;
+  svgEl.appendChild(ln);
+
+  const el = document.createElement('div');
+  el.className = 'bubble ' + b.cat;
+  el.id = 'bbl-' + b.id;
+  el.style.left = b.x + 'px';
+  el.style.top  = b.y + 'px';
+  if (!animate) el.style.animation = 'none';
+
+  const dot = document.createElement('span'); dot.className = 'b-dot'; el.appendChild(dot);
+  const lbl = document.createElement('span'); lbl.textContent = b.label; el.appendChild(lbl);
+
+  // Today's log badge
+  const todayKey = logKey(b.id, todayStr());
+  const todayLog = logs[todayKey];
+  const badge = document.createElement('span');
+  badge.className = 'note-badge' + (todayLog?.yn === 'yes' ? ' yn-yes' : todayLog?.yn === 'no' ? ' yn-no' : '');
+  badge.textContent = todayLog?.yn === 'yes' ? '✓' : todayLog?.yn === 'no' ? '✕' : '✎';
+  badge.title = 'Log today';
+  badge.addEventListener('click', e => { e.stopPropagation(); openNoteModal(b.id, todayStr()); });
+  el.appendChild(badge);
+
+  const del = document.createElement('button');
+  del.className = 'del-btn'; del.innerHTML = '×';
+  del.addEventListener('click', e => { e.stopPropagation(); removeBubble(b.id); });
+  el.appendChild(del);
+
+  attachDrag(el, b);
+  canvasEl.appendChild(el);
+}
+
+function attachDrag(el, b) {
+  let active = false;
+  const isCtrl = t => ['del-btn','note-badge'].some(c => t.classList.contains(c));
+  const start  = (cx, cy) => { active = true; el.style.zIndex = 30; document.getElementById('ln-'+b.id)?.classList.add('hl'); };
+  const move   = (cx, cy) => {
+    if (!active) return;
+    const cr = canvasEl.getBoundingClientRect();
+    b.x = Math.max(50, Math.min(cr.width-50,  cx - cr.left));
+    b.y = Math.max(50, Math.min(cr.height-50, cy - cr.top));
+    el.style.left = b.x+'px'; el.style.top = b.y+'px';
+    const ln = document.getElementById('ln-'+b.id);
+    const c = ctr();
+    if (ln) { ln.setAttribute('x2', b.x); ln.setAttribute('y2', b.y); }
+  };
+  const end = () => { if (!active) return; active = false; el.style.zIndex = 10; document.getElementById('ln-'+b.id)?.classList.remove('hl'); persist(); };
+  el.addEventListener('mousedown', e => { if (!isCtrl(e.target)) start(e.clientX, e.clientY); });
+  document.addEventListener('mousemove', e => move(e.clientX, e.clientY));
+  document.addEventListener('mouseup', end);
+  el.addEventListener('touchstart', e => { if (!isCtrl(e.target)) { start(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); } }, {passive:false});
+  document.addEventListener('touchmove', e => { if (active) { move(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); } }, {passive:false});
+  document.addEventListener('touchend', end);
+}
+
+function addBubble() {
+  const inp = document.getElementById('add-input');
+  const lbl = inp.value.trim();
+  if (!lbl) { inp.focus(); return; }
+  const p = rndPos();
+  const b = { id: Date.now() + Math.random(), label: lbl, cat: selCatVal, x: p.x, y: p.y };
+  bubbles.push(b);
+  drawBubble(b, true);
+  updateStats();
+  hintEl.style.opacity = '0';
+  persist(); inp.value = ''; inp.focus();
+}
+
+function removeBubble(id) {
+  bubbles = bubbles.filter(b => b.id !== id);
+  document.getElementById('bbl-'+id)?.remove();
+  document.getElementById('ln-'+id)?.remove();
+  updateStats();
+  if (!bubbles.length) hintEl.style.opacity = '1';
+  persist();
+}
+
+function clearAll() {
+  if (!confirm('Clear your entire map?')) return;
+  bubbles = []; renderMap(); persist();
+}
+
+function updateStats() {
+  document.getElementById('ct-all').textContent = bubbles.length;
+  document.getElementById('ct-pos').textContent = bubbles.filter(b=>b.cat==='positive').length;
+  document.getElementById('ct-neg').textContent = bubbles.filter(b=>b.cat==='negative').length;
+  document.getElementById('ct-hab').textContent = bubbles.filter(b=>b.cat==='habit').length;
+}
+
+function selCat(btn) {
+  document.querySelectorAll('.cat-chip').forEach(c => c.className = 'cat-chip');
+  selCatVal = btn.dataset.cat;
+  btn.className = 'cat-chip active-' + selCatVal;
+}
+
+// ── DAILY LOG ──
+const todayStr = () => new Date().toISOString().slice(0,10);
+const logKey   = (id, d) => `${id}_${d}`;
+
+function openNoteModal(bubbleId, dateStr) {
+  noteCtx = { bubbleId, dateStr };
+  curYN   = null;
+  const b    = bubbles.find(x => x.id == bubbleId);
+  const prev = logs[logKey(bubbleId, dateStr)];
+  document.getElementById('note-m-title').textContent = b ? b.label : 'Daily note';
+  const d = new Date(dateStr + 'T12:00:00');
+  document.getElementById('note-m-date').textContent = d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  document.getElementById('note-text').value = prev?.note || '';
+  curYN = prev?.yn || null;
+  document.getElementById('yn-yes').className = 'yn-btn' + (curYN==='yes' ? ' sel-yes' : '');
+  document.getElementById('yn-no').className  = 'yn-btn' + (curYN==='no'  ? ' sel-no'  : '');
+  document.getElementById('note-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('note-text').focus(), 80);
+}
+
+function selYN(val) {
+  curYN = val;
+  document.getElementById('yn-yes').className = 'yn-btn' + (val==='yes' ? ' sel-yes' : '');
+  document.getElementById('yn-no').className  = 'yn-btn' + (val==='no'  ? ' sel-no'  : '');
+}
+
+function saveNote() {
+  if (!noteCtx) return;
+  const note = document.getElementById('note-text').value.trim();
+  if (!curYN && !note) { closeBD('note-modal'); return; }
+  const key = logKey(noteCtx.bubbleId, noteCtx.dateStr);
+  logs[key] = { yn: curYN, note };
+  persist();
+  // Refresh badge if today
+  if (noteCtx.dateStr === todayStr()) {
+    const badge = document.querySelector(`#bbl-${noteCtx.bubbleId} .note-badge`);
+    if (badge) {
+      badge.className = 'note-badge' + (curYN==='yes' ? ' yn-yes' : curYN==='no' ? ' yn-no' : '');
+      badge.textContent = curYN==='yes' ? '✓' : curYN==='no' ? '✕' : '✎';
+    }
+  }
+  closeBD('note-modal');
+  if (document.getElementById('view-progress').classList.contains('active')) renderProgress();
+}
+
+// ── PROGRESS ──
+function renderProgress() {
+  const inner = document.getElementById('prog-inner');
+  inner.innerHTML = '';
+
+  // Header
+  inner.insertAdjacentHTML('beforeend', `
+    <div class="sec-head">
+      <div><div class="sec-title">Progress</div><div class="sec-sub">Daily tracking across every bubble, plus map snapshots.</div></div>
+      <button class="btn gold" onclick="openSnapModal()">+ Snapshot</button>
+    </div>`);
+
+  // ── Daily tracker ──
+  inner.insertAdjacentHTML('beforeend', `<div class="subsec-label">Daily Tracker</div>`);
+
+  // Month nav
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const mnav = document.createElement('div');
+  mnav.className = 'month-row';
+  mnav.innerHTML = `
+    <button class="month-btn" onclick="chgMonth(-1)">‹</button>
+    <span class="month-label">${MONTHS[viewMonth.m]} ${viewMonth.y}</span>
+    <button class="month-btn" onclick="chgMonth(1)">›</button>`;
+  inner.appendChild(mnav);
+
+  if (!bubbles.length) {
+    inner.insertAdjacentHTML('beforeend',`<div class="empty-state"><span class="ei">—</span><p>Add bubbles to your map first,<br>then track your daily progress here.</p></div>`);
+  } else {
+    bubbles.forEach(b => inner.appendChild(buildTrackerBlock(b)));
+  }
+
+  // ── Snapshots ──
+  inner.insertAdjacentHTML('beforeend',`<div class="subsec-label" style="margin-top:2.5rem">Map Snapshots</div>`);
+
+  if (!snapshots.length) {
+    inner.insertAdjacentHTML('beforeend',`<div class="empty-state"><span class="ei">—</span><p>No snapshots yet.<br>Hit <strong>Snapshot</strong> in the header to freeze your map.</p></div>`);
+  } else {
+    const grid = document.createElement('div');
+    grid.className = 'snap-grid';
+    snapshots.forEach(snap => {
+      const pos = snap.bubbles.filter(b=>b.cat==='positive').length;
+      const neg = snap.bubbles.filter(b=>b.cat==='negative').length;
+      const card = document.createElement('div');
+      card.className = 'snap-card';
+      card.innerHTML = `
+        <button class="snap-del" onclick="delSnap(${snap.id})">✕</button>
+        <div class="snap-date">${fmtDate(new Date(snap.date))}</div>
+        <div class="snap-name">${esc(snap.name)}</div>
+        ${snap.note?`<div class="snap-note">"${esc(snap.note)}"</div>`:''}
+        <div class="snap-bubbles">${snap.bubbles.map(b=>`<span class="snap-tag ${b.cat}">${esc(b.label)}</span>`).join('')}</div>
+        <div class="snap-foot">
+          <span>${snap.bubbles.length} items</span>
+          <span style="color:var(--green)">${pos} positive</span>
+          <span style="color:var(--red)">${neg} needs work</span>
+          <button class="snap-restore" onclick="restoreSnap(${snap.id})">Restore →</button>
+        </div>`;
+      grid.appendChild(card);
+    });
+    inner.appendChild(grid);
+  }
+}
+
+function buildTrackerBlock(b) {
+  const { y, m } = viewMonth;
+  const dim   = new Date(y, m+1, 0).getDate();
+  const now   = new Date();
+  const todayISO = todayStr();
+
+  let yesN = 0, noN = 0;
+  for (let d = 1; d <= dim; d++) {
+    const l = logs[logKey(b.id, mkDate(y,m,d))];
+    if (l?.yn === 'yes') yesN++;
+    else if (l?.yn === 'no') noN++;
+  }
+  const logged = yesN + noN;
+  const pct    = logged ? Math.round((yesN/logged)*100) : 0;
+  const barColor = pct >= 60 ? 'var(--green)' : pct >= 30 ? 'var(--gold)' : 'var(--red)';
+
+  const block = document.createElement('div');
+  block.className = 'tracker-block';
+
+  // Head
+  block.insertAdjacentHTML('beforeend',`
+    <div class="tracker-head">
+      <span class="tracker-name">${esc(b.label)}</span>
+      <span class="t-cat ${b.cat}">${b.cat}</span>
+      <span class="tracker-score"><strong>${yesN}</strong>/${logged} logged &nbsp;·&nbsp; ${pct}% yes</span>
+    </div>`);
+
+  // Day grid
+  const grid = document.createElement('div');
+  grid.className = 'day-grid';
+  for (let d = 1; d <= dim; d++) {
+    const ds  = mkDate(y,m,d);
+    const log = logs[logKey(b.id, ds)];
+    const isFuture = ds > todayISO;
+    const isToday  = ds === todayISO;
+    const cell = document.createElement('div');
+    cell.className = 'day-cell' + (log?.yn ? ` yn-${log.yn}` : '') + (isFuture ? ' future' : '') + (isToday ? ' today' : '');
+    if (log?.note) cell.dataset.note = '1';
+    cell.innerHTML = `<span class="day-num">${d}</span><span class="day-marker">${log?.yn === 'yes' ? '✓' : log?.yn === 'no' ? '✕' : ''}</span>`;
+    if (!isFuture) cell.addEventListener('click', () => openNoteModal(b.id, ds));
+    grid.appendChild(cell);
+  }
+  block.appendChild(grid);
+
+  // Progress bar
+  block.insertAdjacentHTML('beforeend',`
+    <div class="month-bar-row">
+      <div class="bar-wrap"><div class="bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+      <span class="bar-pct" style="color:${barColor}">${logged ? pct+'%' : '—'}</span>
+    </div>`);
+
+  // Notes for month
+  const monthNotes = [];
+  for (let d = 1; d <= dim; d++) {
+    const ds = mkDate(y,m,d);
+    const l  = logs[logKey(b.id, ds)];
+    if (l?.yn || l?.note) monthNotes.push({ ds, ...l });
+  }
+  if (monthNotes.length) {
+    const nl = document.createElement('div');
+    nl.className = 'notes-list';
+    monthNotes.slice().reverse().forEach(e => {
+      const dt = new Date(e.ds + 'T12:00:00');
+      nl.insertAdjacentHTML('beforeend',`
+        <div class="note-row">
+          <span class="note-date">${dt.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
+          <span class="note-text">${e.note ? esc(e.note) : '<em style="color:var(--ink4)">No note written</em>'}</span>
+          ${e.yn ? `<span class="note-yn ${e.yn}">${e.yn==='yes'?'✓ Yes':'✕ No'}</span>` : ''}
+        </div>`);
+    });
+    block.appendChild(nl);
+  }
+
+  return block;
+}
+
+function chgMonth(dir) {
+  viewMonth.m += dir;
+  if (viewMonth.m < 0)  { viewMonth.m = 11; viewMonth.y--; }
+  if (viewMonth.m > 11) { viewMonth.m = 0;  viewMonth.y++; }
+  renderProgress();
+}
+
+function mkDate(y, m, d) {
+  return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+
+// ── SNAPSHOTS ──
+function openSnapModal() {
+  document.getElementById('sn-name').value = '';
+  document.getElementById('sn-note').value = '';
+  document.getElementById('snap-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('sn-name').focus(), 80);
+}
+function saveSnap() {
+  if (!bubbles.length) { alert('Your map is empty — add some bubbles first.'); return; }
+  const name = document.getElementById('sn-name').value.trim() || fmtDate(new Date());
+  const note = document.getElementById('sn-note').value.trim();
+  snapshots.unshift({ id: Date.now(), name, note, date: new Date().toISOString(), bubbles: JSON.parse(JSON.stringify(bubbles)) });
+  persist(); closeBD('snap-modal');
+  switchView('progress', document.querySelectorAll('.nav-tab')[1]);
+}
+function delSnap(id) {
+  if (!confirm('Delete this snapshot?')) return;
+  snapshots = snapshots.filter(s => s.id !== id);
+  persist(); renderProgress();
+}
+function restoreSnap(id) {
+  const snap = snapshots.find(s => s.id === id);
+  if (!snap || !confirm(`Restore "${snap.name}"? Your current map will be replaced.`)) return;
+  bubbles = JSON.parse(JSON.stringify(snap.bubbles));
+  persist();
+  switchView('map', document.querySelectorAll('.nav-tab')[0]);
+  setTimeout(() => { placeYou(); renderMap(); }, 80);
+}
+
+// ── RESOURCES ──
+const RES = [
+  {id:1,name:"Atomic Habits",type:"book",desc:"How tiny behavioral changes compound into identity-level transformation. The best single book on habit change.",tags:["habits","negative","self-improvement"]},
+  {id:2,name:"The Body Keeps the Score",type:"book",desc:"Explores how trauma and chronic stress live in the body — essential if any of your bubbles go back a long way.",tags:["mental health","negative","self-awareness"]},
+  {id:3,name:"Daily journaling",type:"practice",desc:"10 minutes each morning. Write what your map looked like yesterday, what you did, what you'd change.",tags:["self-awareness","habits"]},
+  {id:4,name:"Dopamine Nation",type:"book",desc:"A sober clinical look at compulsive behavior and the pleasure-pain balance. Relevant for any addictive pattern.",tags:["negative","habits"]},
+  {id:5,name:"CBT thought record",type:"practice",desc:"Map the thought → feeling → behavior loop driving the patterns you want to change.",tags:["mental health","negative","self-awareness"]},
+  {id:6,name:"Weekly review",type:"practice",desc:"A structured 20-minute review: what drained you, what energized you, what you avoided, what you'll do differently.",tags:["self-awareness","habits","positive"]},
+  {id:7,name:"Huberman sleep protocol",type:"tool",desc:"Andrew Huberman's evidence-based sleep stack. The foundation beneath every other bubble.",tags:["habits","health"]},
+  {id:8,name:"Boundaries book",type:"book",desc:"For relationship patterns that keep showing up despite wanting to change them.",tags:["relationships","negative","self-awareness"]},
+  {id:9,name:"20-min daily exercise",type:"practice",desc:"The easiest green bubble to add. Even 20 minutes 3× a week reshapes mood, discipline, and self-image.",tags:["positive","habits","health"]},
+  {id:10,name:"Digital detox experiment",type:"practice",desc:"Remove every app you suspect is filling a void for one week. See what surfaces underneath.",tags:["habits","negative"]},
+  {id:11,name:"Therapy",type:"tool",desc:"Some bubbles are too heavy to move alone. A professional can help you understand the roots.",tags:["mental health","any","negative"]},
+  {id:12,name:"Mindfulness basics",type:"practice",desc:"Even 5 minutes of deliberate stillness a day builds the self-awareness muscle this whole app depends on.",tags:["self-awareness","habits","positive"]},
+];
+const RES_TYPES = ['All','book','article','practice','tool'];
+let activeRes = 'All';
+
+function renderResources() {
+  const fr = document.getElementById('res-filters');
+  fr.innerHTML = '';
+  RES_TYPES.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'res-chip' + (t === activeRes ? ' active' : '');
+    btn.textContent = t === 'All' ? 'All' : t.charAt(0).toUpperCase()+t.slice(1);
+    btn.onclick = () => { activeRes = t; renderResources(); };
+    fr.appendChild(btn);
+  });
+  const grid = document.getElementById('res-grid');
+  grid.innerHTML = '';
+  (activeRes === 'All' ? RES : RES.filter(r => r.type === activeRes)).forEach(r => {
+    const card = document.createElement('div');
+    card.className = `res-card type-${r.type}`;
+    card.innerHTML = `<div class="res-type">${r.type}</div><div class="res-name">${esc(r.name)}</div><div class="res-desc">${esc(r.desc)}</div><div class="res-tags">${r.tags.map(t=>`<span class="res-pill">${t}</span>`).join('')}</div>`;
+    card.onclick = () => {
+      document.getElementById('res-modal-body').innerHTML = `
+        <div class="m-title">${esc(r.name)}</div>
+        <div style="font-size:0.62rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink4);margin-bottom:0.9rem;font-weight:500">${r.type}</div>
+        <div style="font-size:0.8rem;color:var(--ink2);line-height:1.75;margin-bottom:1.1rem">${esc(r.desc)}</div>
+        <div class="res-tags" style="margin-bottom:1rem">${r.tags.map(t=>`<span class="res-pill">${t}</span>`).join('')}</div>
+        <div style="font-size:0.7rem;color:var(--ink4);line-height:1.65;padding:0.65rem 0.8rem;background:var(--bg2);border-radius:7px;border:1px solid var(--rule2)">Affiliate links will appear here when the site is live. For now, search the title to find it.</div>`;
+      document.getElementById('res-modal').style.display = 'flex';
+    };
+    grid.appendChild(card);
+  });
+}
+
+// ── MODALS ──
+function closeBD(id, evt) {
+  if (evt && !evt.target.classList.contains('backdrop')) return;
+  document.getElementById(id).style.display = 'none';
+}
+
+// ── EXPORT ──
+function exportAll() {
+  const blob = new Blob([JSON.stringify({bubbles,snapshots,logs,exported:new Date().toISOString()},null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'one-honest-look-' + todayStr() + '.json';
+  a.click();
+}
+
+// ── UTILS ──
+function fmtDate(d) { return d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── SEED ──
+function seed() {
+  if (bubbles.length) return;
+  [{label:'Family time',cat:'positive'},{label:'Running',cat:'positive'},{label:'Drinking',cat:'negative'},{label:'Gaming',cat:'habit'},{label:'Work focus',cat:'neutral'},{label:'Binge eating',cat:'negative'},{label:'Learning',cat:'positive'}]
+    .forEach(d => { const p = rndPos(); bubbles.push({id:Date.now()+Math.random(),...d,x:p.x,y:p.y}); });
+}
+
+document.getElementById('add-input').addEventListener('keydown', e => { if(e.key==='Enter') addBubble(); });
+window.addEventListener('resize', placeYou);
+
+// ── INIT ──
+loadData();
+setTimeout(() => { placeYou(); if (!bubbles.length) seed(); renderMap(); }, 80);
+</script>
+</body>
+</html>

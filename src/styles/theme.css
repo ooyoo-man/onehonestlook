@@ -1,0 +1,57 @@
+:root {
+  --bg: #f6f3ee;
+  --bg2: #edeae3;
+  --bg3: #e4e0d8;
+  --ink: #1e1c18;
+  --ink2: #3c3a34;
+  --ink3: #78756c;
+  --ink4: #a9a59c;
+  --rule: rgba(30, 28, 24, 0.09);
+  --rule2: rgba(30, 28, 24, 0.05);
+  --gold: #8a6c3e;
+  --gold-lt: #c4a06e;
+  --gold-bg: rgba(138, 108, 62, 0.09);
+  --red: #8c3a2e;
+  --red-bg: rgba(140, 58, 46, 0.08);
+  --red-ln: rgba(140, 58, 46, 0.22);
+  --green: #2e6645;
+  --green-bg: rgba(46, 102, 69, 0.08);
+  --green-ln: rgba(46, 102, 69, 0.22);
+  --blue: #2e4f8c;
+  --blue-bg: rgba(46, 79, 140, 0.08);
+  --blue-ln: rgba(46, 79, 140, 0.22);
+  --font-h: 'Lora', Georgia, serif;
+  --font-b: 'Jost', sans-serif;
+  --sh: 0 2px 12px rgba(30, 28, 24, 0.08);
+  --sh-lg: 0 8px 40px rgba(30, 28, 24, 0.14);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-b);
+}
+
+/* Texture overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.022'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--rule);
+  border-radius: 10px;
+}
