@@ -10,6 +10,13 @@ interface SnapshotCardProps {
 export default function SnapshotCard({ snapshot, onDelete, onRestore }: SnapshotCardProps) {
   const positiveCount = snapshot.bubbles.filter(b => b.cat === 'positive').length;
   const negativeCount = snapshot.bubbles.filter(b => b.cat === 'negative').length;
+  const source = snapshot.source ?? 'manual';
+  const sourceLabel =
+    source === 'manual'
+      ? 'Manual'
+      : snapshot.cadence === 'weekly'
+      ? 'Auto weekly'
+      : 'Auto monthly';
 
   const getTagStyles = (cat: string) => {
     if (cat === 'positive') return { background: 'var(--green-bg)', color: 'var(--green)' };
@@ -33,6 +40,18 @@ export default function SnapshotCard({ snapshot, onDelete, onRestore }: Snapshot
 
       <div className="text-[0.62rem] tracking-[0.08em] uppercase mb-2" style={{ color: 'var(--ink4)' }}>
         {fmtDate(new Date(snapshot.date))}
+      </div>
+
+      <div className="mb-2">
+        <span
+          className="text-[0.58rem] px-2 py-0.5 rounded-full tracking-[0.06em] uppercase"
+          style={{
+            background: source === 'manual' ? 'var(--bg2)' : 'var(--gold-bg)',
+            color: source === 'manual' ? 'var(--ink3)' : 'var(--gold)',
+          }}
+        >
+          {sourceLabel}
+        </span>
       </div>
 
       <div style={{ fontFamily: 'var(--font-h)', color: 'var(--ink)' }} className="text-[0.92rem] italic mb-2">

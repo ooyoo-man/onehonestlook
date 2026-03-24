@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Bubble, Snapshot, Log } from '../types';
-import { todayStr, logKey, mkDate, fmtDate } from '../utils/helpers';
+import { getYearFromDateIso, todayStr, logKey, mkDate, fmtDate } from '../utils/helpers';
 import TrackerBlock from './TrackerBlock';
 import SnapshotCard from './SnapshotCard';
 
@@ -12,6 +12,7 @@ interface ProgressViewProps {
   setBubbles: (bubbles: Bubble[]) => void;
   onOpenNoteModal: (bubbleId: number, dateStr: string) => void;
   onOpenSnapshotModal: () => void;
+  onOpenArchive: () => void;
 }
 
 export default function ProgressView({
@@ -22,9 +23,11 @@ export default function ProgressView({
   setBubbles,
   onOpenNoteModal,
   onOpenSnapshotModal,
+  onOpenArchive,
 }: ProgressViewProps) {
   const now = new Date();
   const [viewMonth, setViewMonth] = useState({ y: now.getFullYear(), m: now.getMonth() });
+  const [activeYear, setActiveYear] = useState<number | 'all'>('all');
 
   const MONTHS = [
     'January',
@@ -66,6 +69,19 @@ export default function ProgressView({
     if (!snap || !window.confirm(`Restore "${snap.name}"? Your current map will be replaced.`)) return;
     setBubbles(JSON.parse(JSON.stringify(snap.bubbles)));
   };
+
+  const snapshotYears = useMemo(() => {
+    const years = Array.from(new Set(snapshots.map(s => getYearFromDateIso(s.date))));
+    return years.sort((a, b) => b - a);
+  }, [snapshots]);
+
+  const filteredSnapshots = useMemo(() => {
+    if (activeYear === 'all') return snapshots;
+    return snapshots.filter(s => getYearFromDateIso(s.date) === activeYear);
+  }, [activeYear, snapshots]);
+
+  const manualCount = filteredSnapshots.filter(s => (s.source ?? 'manual') === 'manual').length;
+  const autoCount = filteredSnapshots.filter(s => (s.source ?? 'manual') === 'auto').length;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -155,7 +171,58 @@ export default function ProgressView({
             Map Snapshots
           </div>
 
-          {snapshots.length === 0 ? (
+          <div className="rounded-[10px] border p-4 mb-4" style={{ background: 'var(--bg)', borderColor: 'var(--rule)' }}>
+            <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+              <div className="text-[0.72rem]" style={{ color: 'var(--ink2)' }}>
+                Archive Summary
+              </div>
+              <button
+                onClick={onOpenArchive}
+                className="text-[0.68rem] underline underline-offset-2 hover:opacity-80"
+                style={{ color: 'var(--gold)', fontFamily: 'var(--font-b)' }}
+              >
+                Open full Archive →
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5 mb-3">
+              <button
+                onClick={() => setActiveYear('all')}
+                className="text-[0.66rem] px-2.5 py-1 rounded-full border transition-all duration-150"
+                style={{
+                  fontFamily: 'var(--font-b)',
+                  background: activeYear === 'all' ? 'var(--bg2)' : 'transparent',
+                  borderColor: 'var(--rule)',
+                  color: activeYear === 'all' ? 'var(--ink)' : 'var(--ink3)',
+                }}
+              >
+                All years
+              </button>
+              {snapshotYears.map(y => (
+                <button
+                  key={y}
+                  onClick={() => setActiveYear(y)}
+                  className="text-[0.66rem] px-2.5 py-1 rounded-full border transition-all duration-150"
+                  style={{
+                    fontFamily: 'var(--font-b)',
+                    background: activeYear === y ? 'var(--bg2)' : 'transparent',
+                    borderColor: 'var(--rule)',
+                    color: activeYear === y ? 'var(--ink)' : 'var(--ink3)',
+                  }}
+                >
+                  {y}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-4 text-[0.68rem]" style={{ color: 'var(--ink3)' }}>
+              <span>Total: <strong style={{ color: 'var(--ink)' }}>{filteredSnapshots.length}</strong></span>
+              <span>Manual: <strong style={{ color: 'var(--ink)' }}>{manualCount}</strong></span>
+              <span>Auto: <strong style={{ color: 'var(--ink)' }}>{autoCount}</strong></span>
+            </div>
+          </div>
+
+          {filteredSnapshots.length === 0 ? (
             <div className="text-center py-12" style={{ color: 'var(--ink3)' }}>
               <span
                 style={{ fontFamily: 'var(--font-h)', color: 'var(--ink4)' }}
@@ -164,14 +231,14 @@ export default function ProgressView({
                 —
               </span>
               <p className="text-[0.76rem] leading-[1.9]">
-                No snapshots yet.
+                No snapshots in this range yet.
                 <br />
                 Hit <strong>Snapshot</strong> in the header to freeze your map.
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-[repeat(auto-fill,minmax(255px,1fr))] gap-3">
-              {snapshots.map(snapshot => (
+              {filteredSnapshots.map(snapshot => (
                 <SnapshotCard
                   key={snapshot.id}
                   snapshot={snapshot}

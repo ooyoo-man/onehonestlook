@@ -37,6 +37,7 @@ export default function SnapshotModal({
       note: note.trim(),
       date: new Date().toISOString(),
       bubbles: JSON.parse(JSON.stringify(bubbles)),
+      source: 'manual',
     };
 
     setSnapshots([newSnapshot, ...snapshots]);

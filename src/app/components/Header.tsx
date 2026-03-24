@@ -1,4 +1,4 @@
-type View = 'map' | 'progress' | 'resources' | 'learn';
+type View = 'map' | 'progress' | 'archive' | 'resources' | 'learn';
 
 interface HeaderProps {
   currentView: View;
@@ -69,6 +69,22 @@ export default function Header({ currentView, onViewChange, onSnapshot, onExport
           }}
         >
           Resources
+        </button>
+        <button
+          onClick={() => onViewChange('archive')}
+          className={`text-[0.71rem] font-medium px-3 py-1.5 rounded-md border-none transition-all duration-150 tracking-wide whitespace-nowrap ${
+            currentView === 'archive'
+              ? 'shadow-sm'
+              : ''
+          }`}
+          style={{
+            fontFamily: 'var(--font-b)',
+            background: currentView === 'archive' ? 'var(--bg)' : 'transparent',
+            color: currentView === 'archive' ? 'var(--ink)' : 'var(--ink3)',
+            boxShadow: currentView === 'archive' ? '0 1px 3px rgba(30,28,24,0.09)' : 'none',
+          }}
+        >
+          Archive
         </button>
         <button
           onClick={() => onViewChange('learn')}

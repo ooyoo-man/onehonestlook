@@ -14,11 +14,19 @@ export interface Snapshot {
   note: string;
   date: string;
   bubbles: Bubble[];
+  source?: 'manual' | 'auto';
+  cadence?: 'weekly' | 'monthly';
+  periodKey?: string;
 }
 
 export interface Log {
   yn: 'yes' | 'no' | null;
   note: string;
+}
+
+export interface ArchiveSettings {
+  autoArchiveEnabled: boolean;
+  cadence: 'weekly' | 'monthly';
 }
 
 export interface Resource {
