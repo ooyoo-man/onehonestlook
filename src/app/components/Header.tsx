@@ -1,4 +1,4 @@
-type View = 'map' | 'progress' | 'archive' | 'resources' | 'learn';
+type View = 'map' | 'focus' | 'progress' | 'archive' | 'resources' | 'learn';
 
 interface HeaderProps {
   currentView: View;
@@ -53,6 +53,22 @@ export default function Header({ currentView, onViewChange, onSnapshot, onExport
           }}
         >
           Progress
+        </button>
+        <button
+          onClick={() => onViewChange('focus')}
+          className={`text-[0.71rem] font-medium px-3 py-1.5 rounded-md border-none transition-all duration-150 tracking-wide whitespace-nowrap ${
+            currentView === 'focus'
+              ? 'shadow-sm'
+              : ''
+          }`}
+          style={{
+            fontFamily: 'var(--font-b)',
+            background: currentView === 'focus' ? 'var(--bg)' : 'transparent',
+            color: currentView === 'focus' ? 'var(--ink)' : 'var(--ink3)',
+            boxShadow: currentView === 'focus' ? '0 1px 3px rgba(30,28,24,0.09)' : 'none',
+          }}
+        >
+          Focus
         </button>
         <button
           onClick={() => onViewChange('resources')}

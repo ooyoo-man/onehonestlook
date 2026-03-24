@@ -14,8 +14,12 @@ export default function SnapshotCard({ snapshot, onDelete, onRestore }: Snapshot
   const sourceLabel =
     source === 'manual'
       ? 'Manual'
+      : snapshot.cadence === 'daily'
+      ? 'Auto daily'
       : snapshot.cadence === 'weekly'
       ? 'Auto weekly'
+      : snapshot.cadence === 'biweekly'
+      ? 'Auto bi-weekly'
       : 'Auto monthly';
 
   const getTagStyles = (cat: string) => {

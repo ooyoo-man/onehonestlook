@@ -18,6 +18,9 @@ export const escapeHtml = (s: string) =>
 export const getMonthKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 
+export const getDayKey = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
 // ISO week key, e.g. 2026-W12
 export const getWeekKey = (d: Date) => {
   const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
@@ -28,7 +31,23 @@ export const getWeekKey = (d: Date) => {
   return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 };
 
-export const getArchivePeriodKey = (d: Date, cadence: 'weekly' | 'monthly') =>
-  cadence === 'weekly' ? getWeekKey(d) : getMonthKey(d);
+// Bi-week key from ISO week number, e.g. 2026-BW06
+export const getBiWeekKey = (d: Date) => {
+  const weekKey = getWeekKey(d); // YYYY-Wxx
+  const [year, isoWeekPart] = weekKey.split('-W');
+  const weekNo = Number(isoWeekPart);
+  const biWeekNo = Math.ceil(weekNo / 2);
+  return `${year}-BW${String(biWeekNo).padStart(2, '0')}`;
+};
+
+export const getArchivePeriodKey = (
+  d: Date,
+  cadence: 'daily' | 'weekly' | 'biweekly' | 'monthly'
+) => {
+  if (cadence === 'daily') return getDayKey(d);
+  if (cadence === 'weekly') return getWeekKey(d);
+  if (cadence === 'biweekly') return getBiWeekKey(d);
+  return getMonthKey(d);
+};
 
 export const getYearFromDateIso = (isoDate: string) => new Date(isoDate).getFullYear();

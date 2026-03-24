@@ -102,16 +102,16 @@ export default function ArchiveView({
 
               <div className="flex items-center gap-1">
                 <button
-                  onClick={() => setArchiveSettings({ ...archiveSettings, cadence: 'monthly' })}
+                  onClick={() => setArchiveSettings({ ...archiveSettings, cadence: 'daily' })}
                   className="text-[0.68rem] px-3 py-1 rounded-full border transition-all duration-150"
                   style={{
                     fontFamily: 'var(--font-b)',
-                    background: archiveSettings.cadence === 'monthly' ? 'var(--bg)' : 'var(--bg2)',
-                    borderColor: archiveSettings.cadence === 'monthly' ? 'rgba(30,28,24,0.22)' : 'var(--rule)',
-                    color: archiveSettings.cadence === 'monthly' ? 'var(--ink)' : 'var(--ink3)',
+                    background: archiveSettings.cadence === 'daily' ? 'var(--bg)' : 'var(--bg2)',
+                    borderColor: archiveSettings.cadence === 'daily' ? 'rgba(30,28,24,0.22)' : 'var(--rule)',
+                    color: archiveSettings.cadence === 'daily' ? 'var(--ink)' : 'var(--ink3)',
                   }}
                 >
-                  Monthly
+                  Daily
                 </button>
                 <button
                   onClick={() => setArchiveSettings({ ...archiveSettings, cadence: 'weekly' })}
@@ -124,6 +124,30 @@ export default function ArchiveView({
                   }}
                 >
                   Weekly
+                </button>
+                <button
+                  onClick={() => setArchiveSettings({ ...archiveSettings, cadence: 'biweekly' })}
+                  className="text-[0.68rem] px-3 py-1 rounded-full border transition-all duration-150"
+                  style={{
+                    fontFamily: 'var(--font-b)',
+                    background: archiveSettings.cadence === 'biweekly' ? 'var(--bg)' : 'var(--bg2)',
+                    borderColor: archiveSettings.cadence === 'biweekly' ? 'rgba(30,28,24,0.22)' : 'var(--rule)',
+                    color: archiveSettings.cadence === 'biweekly' ? 'var(--ink)' : 'var(--ink3)',
+                  }}
+                >
+                  Bi-weekly
+                </button>
+                <button
+                  onClick={() => setArchiveSettings({ ...archiveSettings, cadence: 'monthly' })}
+                  className="text-[0.68rem] px-3 py-1 rounded-full border transition-all duration-150"
+                  style={{
+                    fontFamily: 'var(--font-b)',
+                    background: archiveSettings.cadence === 'monthly' ? 'var(--bg)' : 'var(--bg2)',
+                    borderColor: archiveSettings.cadence === 'monthly' ? 'rgba(30,28,24,0.22)' : 'var(--rule)',
+                    color: archiveSettings.cadence === 'monthly' ? 'var(--ink)' : 'var(--ink3)',
+                  }}
+                >
+                  Monthly
                 </button>
               </div>
             </div>

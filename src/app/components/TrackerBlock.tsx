@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Bubble, Log } from '../types';
 import { todayStr, logKey, mkDate } from '../utils/helpers';
 
@@ -6,12 +7,34 @@ interface TrackerBlockProps {
   viewMonth: { y: number; m: number };
   logs: Record<string, Log>;
   onOpenNoteModal: (bubbleId: number, dateStr: string) => void;
+  highlightedDate?: string | null;
+  onBulkSetYN: (bubbleId: number, dateStrs: string[], yn: 'yes' | 'no' | null) => void;
 }
 
-export default function TrackerBlock({ bubble, viewMonth, logs, onOpenNoteModal }: TrackerBlockProps) {
+export default function TrackerBlock({
+  bubble,
+  viewMonth,
+  logs,
+  onOpenNoteModal,
+  highlightedDate,
+  onBulkSetYN,
+}: TrackerBlockProps) {
   const { y, m } = viewMonth;
   const daysInMonth = new Date(y, m + 1, 0).getDate();
   const todayISO = todayStr();
+  const [paintMode, setPaintMode] = useState<'yes' | 'no' | null>('yes');
+  const [isPainting, setIsPainting] = useState(false);
+
+  useEffect(() => {
+    const stopPainting = () => setIsPainting(false);
+    window.addEventListener('mouseup', stopPainting);
+    return () => window.removeEventListener('mouseup', stopPainting);
+  }, []);
+
+  const applyPaint = (dateStr: string) => {
+    if (dateStr > todayISO) return;
+    onBulkSetYN(bubble.id, [dateStr], paintMode);
+  };
 
   // Calculate stats
   let yesCount = 0;
@@ -59,6 +82,52 @@ export default function TrackerBlock({ bubble, viewMonth, logs, onOpenNoteModal 
         </span>
       </div>
 
+      {/* Bulk update */}
+      <div
+        className="flex items-center gap-2 flex-wrap mb-3 p-2 rounded-md border"
+        style={{ borderColor: 'var(--rule2)', background: 'var(--bg2)' }}
+      >
+        <span className="text-[0.62rem] tracking-[0.08em] uppercase" style={{ color: 'var(--ink4)' }}>
+          Paint mode
+        </span>
+        <button
+          onClick={() => setPaintMode('yes')}
+          className="text-[0.64rem] px-2.5 py-1 rounded border transition-all duration-150 hover:opacity-85"
+          style={{
+            borderColor: 'var(--green-ln)',
+            background: paintMode === 'yes' ? 'var(--green-bg)' : 'var(--bg)',
+            color: 'var(--green)',
+          }}
+        >
+          Yes
+        </button>
+        <button
+          onClick={() => setPaintMode('no')}
+          className="text-[0.64rem] px-2.5 py-1 rounded border transition-all duration-150 hover:opacity-85"
+          style={{
+            borderColor: 'var(--red-ln)',
+            background: paintMode === 'no' ? 'var(--red-bg)' : 'var(--bg)',
+            color: 'var(--red)',
+          }}
+        >
+          No
+        </button>
+        <button
+          onClick={() => setPaintMode(null)}
+          className="text-[0.64rem] px-2.5 py-1 rounded border transition-all duration-150 hover:opacity-85"
+          style={{
+            borderColor: 'var(--rule)',
+            background: paintMode === null ? 'var(--bg3)' : 'var(--bg)',
+            color: 'var(--ink3)',
+          }}
+        >
+          Clear
+        </button>
+        <span className="text-[0.62rem] ml-auto" style={{ color: 'var(--ink4)' }}>
+          Click + drag over days
+        </span>
+      </div>
+
       {/* Day grid */}
       <div className="flex flex-wrap gap-[3px] mb-2.5">
         {Array.from({ length: daysInMonth }, (_, i) => {
@@ -71,10 +140,25 @@ export default function TrackerBlock({ bubble, viewMonth, logs, onOpenNoteModal 
           return (
             <div
               key={day}
-              onClick={() => !isFuture && onOpenNoteModal(bubble.id, dateStr)}
+              onMouseDown={(e) => {
+                if (isFuture) return;
+                if (e.altKey) {
+                  // Keep single-day note editing available via Alt+Click.
+                  onOpenNoteModal(bubble.id, dateStr);
+                  return;
+                }
+                setIsPainting(true);
+                applyPaint(dateStr);
+              }}
+              onMouseEnter={() => {
+                if (!isPainting || isFuture) return;
+                applyPaint(dateStr);
+              }}
               className={`w-[30px] h-[30px] rounded-[5px] border flex flex-col items-center justify-center transition-all duration-150 flex-shrink-0 relative ${
                 isFuture ? 'opacity-30 cursor-default pointer-events-none' : 'cursor-pointer hover:opacity-80'
-              } ${isToday ? 'outline outline-[1.5px] outline-offset-1' : ''}`}
+              } ${isToday ? 'outline outline-[1.5px] outline-offset-1' : ''} ${
+                highlightedDate === dateStr ? 'ring-1 ring-offset-1' : ''
+              }`}
               style={{
                 borderColor: log?.yn === 'yes' ? 'var(--green-ln)' : log?.yn === 'no' ? 'var(--red-ln)' : 'var(--rule)',
                 background: log?.yn === 'yes' ? 'var(--green-bg)' : log?.yn === 'no' ? 'var(--red-bg)' : 'var(--bg2)',

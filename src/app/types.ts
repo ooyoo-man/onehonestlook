@@ -2,6 +2,8 @@ export interface Bubble {
   id: number;
   label: string;
   cat: 'neutral' | 'positive' | 'negative' | 'habit';
+  priorityLane?: 'now' | 'next' | 'later';
+  focusOrder?: number;
   x: number;
   y: number;
   reflections?: Record<string, string>;
@@ -15,7 +17,7 @@ export interface Snapshot {
   date: string;
   bubbles: Bubble[];
   source?: 'manual' | 'auto';
-  cadence?: 'weekly' | 'monthly';
+  cadence?: 'daily' | 'weekly' | 'biweekly' | 'monthly';
   periodKey?: string;
 }
 
@@ -26,7 +28,25 @@ export interface Log {
 
 export interface ArchiveSettings {
   autoArchiveEnabled: boolean;
-  cadence: 'weekly' | 'monthly';
+  cadence: 'daily' | 'weekly' | 'biweekly' | 'monthly';
+}
+
+export interface IntakeAnswers {
+  identityStrengths: string[];
+  growthAreas: string[];
+  habitsToBuild: string[];
+  habitsToReduce: string[];
+  focusDomains: string[];
+  customEntries: string;
+}
+
+export interface FocusSprint {
+  id: number;
+  name: string;
+  startDate: string;
+  endDate: string;
+  active: boolean;
+  goalNote?: string;
 }
 
 export interface Resource {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArchiveSettings, Bubble, Snapshot, Log } from './types';
+import { ArchiveSettings, Bubble, Snapshot, Log, IntakeAnswers, FocusSprint } from './types';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import Header from './components/Header';
 import MapView from './components/MapView';
@@ -7,13 +7,15 @@ import ProgressView from './components/ProgressView';
 import ResourcesView from './components/ResourcesView';
 import LearnView from './components/LearnView';
 import ArchiveView from './components/ArchiveView';
+import FocusView from './components/FocusView';
 import SnapshotModal from './components/modals/SnapshotModal';
 import NoteModal from './components/modals/NoteModal';
 import ExploreBubbleModal from './components/modals/ExploreBubbleModal';
+import IntakeQuestionnaireModal, { buildStarterBubblesFromIntake } from './components/modals/IntakeQuestionnaireModal';
 import LoginPage from './components/LoginPage';
-import { getArchivePeriodKey } from './utils/helpers';
+import { getArchivePeriodKey, logKey } from './utils/helpers';
 
-type View = 'map' | 'progress' | 'archive' | 'resources' | 'learn';
+type View = 'map' | 'focus' | 'progress' | 'archive' | 'resources' | 'learn';
 
 export default function Root() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -24,16 +26,19 @@ export default function Root() {
     autoArchiveEnabled: true,
     cadence: 'monthly',
   });
+  const [focusSprint, setFocusSprint] = useLocalStorage<FocusSprint | null>('ohl3-focus-sprint', null);
+  const [hasCompletedIntake, setHasCompletedIntake] = useLocalStorage<boolean>('ohl3-intake-done', false);
   const [currentView, setCurrentView] = useState<View>('map');
+  const [showIntakeModal, setShowIntakeModal] = useState(false);
   const [showSnapshotModal, setShowSnapshotModal] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [showExploreModal, setShowExploreModal] = useState(false);
   const [noteContext, setNoteContext] = useState<{ bubbleId: number; dateStr: string } | null>(null);
   const [exploreBubble, setExploreBubble] = useState<Bubble | null>(null);
 
-  // Seed data on first load
+  // Seed fallback demo data only after intake is complete.
   useEffect(() => {
-    if (bubbles.length === 0) {
+    if (bubbles.length === 0 && hasCompletedIntake) {
       const seedData: Omit<Bubble, 'x' | 'y'>[] = [
         { id: Date.now() + Math.random(), label: 'Family time', cat: 'positive' },
         { id: Date.now() + Math.random() + 0.1, label: 'Running', cat: 'positive' },
@@ -52,7 +57,14 @@ export default function Root() {
       
       setBubbles(bubblesWithPos);
     }
-  }, []);
+  }, [hasCompletedIntake]);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    if (!hasCompletedIntake) {
+      setShowIntakeModal(true);
+    }
+  }, [isLoggedIn, hasCompletedIntake]);
 
   useEffect(() => {
     if (!archiveSettings.autoArchiveEnabled) return;
@@ -66,9 +78,17 @@ export default function Root() {
     if (alreadyExists) return;
 
     const periodLabel =
-      archiveSettings.cadence === 'monthly'
-        ? now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-        : `Week of ${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+      archiveSettings.cadence === 'daily'
+        ? now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : archiveSettings.cadence === 'weekly'
+        ? `Week of ${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+        : archiveSettings.cadence === 'biweekly'
+        ? `2-week period ending ${now.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          })}`
+        : now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
     const autoSnapshot: Snapshot = {
       id: Date.now(),
@@ -115,6 +135,45 @@ export default function Root() {
     setBubbles(bubbles.map(b => (b.id === bubbleId ? { ...b, reflections } : b)));
   };
 
+  const bulkSetYN = (bubbleId: number, dateStrs: string[], yn: 'yes' | 'no' | null) => {
+    setLogs((prev) => {
+      const next = { ...prev };
+      for (const ds of dateStrs) {
+        const key = logKey(bubbleId, ds);
+        const existing = next[key] ?? { yn: null, note: '' };
+        next[key] = { ...existing, yn };
+      }
+      return next;
+    });
+  };
+
+  const completeIntake = (answers: IntakeAnswers) => {
+    const starter = buildStarterBubblesFromIntake(answers);
+    if (starter.length > 0) {
+      const width = 800;
+      const height = 600;
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const positioned = starter.map((b, i) => {
+        const angle = (i / Math.max(starter.length, 1)) * Math.PI * 2;
+        const radius = 120 + (i % 4) * 40;
+        return {
+          ...b,
+          x: centerX + Math.cos(angle) * radius,
+          y: centerY + Math.sin(angle) * radius,
+        };
+      });
+      setBubbles(positioned);
+    }
+    setHasCompletedIntake(true);
+    setShowIntakeModal(false);
+  };
+
+  const skipIntake = () => {
+    setHasCompletedIntake(true);
+    setShowIntakeModal(false);
+  };
+
   if (!isLoggedIn) {
     return <LoginPage onLogin={() => setIsLoggedIn(true)} />;
   }
@@ -146,8 +205,18 @@ export default function Root() {
           logs={logs}
           setBubbles={setBubbles}
           onOpenNoteModal={openNoteModal}
+          onBulkSetYN={bulkSetYN}
           onOpenSnapshotModal={() => setShowSnapshotModal(true)}
           onOpenArchive={() => setCurrentView('archive')}
+        />
+      )}
+
+      {currentView === 'focus' && (
+        <FocusView
+          bubbles={bubbles}
+          setBubbles={setBubbles}
+          focusSprint={focusSprint}
+          setFocusSprint={setFocusSprint}
         />
       )}
 
@@ -189,6 +258,12 @@ export default function Root() {
         bubble={exploreBubble}
         onSaveReflection={saveReflections}
         existingReflections={exploreBubble?.reflections || {}}
+      />
+
+      <IntakeQuestionnaireModal
+        isOpen={showIntakeModal}
+        onComplete={completeIntake}
+        onSkip={skipIntake}
       />
     </div>
   );
