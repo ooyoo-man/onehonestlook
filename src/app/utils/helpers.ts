@@ -16,14 +16,14 @@ export const escapeHtml = (s: string) =>
     .replace(/"/g, '&quot;');
 
 export const getMonthKey = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 
 export const getDayKey = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
 
-// ISO week key, e.g. 2026-W12
+// ISO week key, e.g. 2026-W12 (UTC calendar date — aligns with snapshot ISO timestamps)
 export const getWeekKey = (d: Date) => {
-  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
   const dayNum = date.getUTCDay() || 7;
   date.setUTCDate(date.getUTCDate() + 4 - dayNum);
   const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
@@ -50,4 +50,4 @@ export const getArchivePeriodKey = (
   return getMonthKey(d);
 };
 
-export const getYearFromDateIso = (isoDate: string) => new Date(isoDate).getFullYear();
+export const getYearFromDateIso = (isoDate: string) => new Date(isoDate).getUTCFullYear();
