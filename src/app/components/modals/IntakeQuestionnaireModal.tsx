@@ -40,7 +40,7 @@ export function buildStarterBubblesFromIntake(answers: IntakeAnswers): Omit<Bubb
 
   answers.identityStrengths.forEach((s) => entries.push({ label: s, cat: 'positive' }));
   answers.growthAreas.forEach((s) => entries.push({ label: s, cat: 'negative' }));
-  answers.habitsToBuild.forEach((s) => entries.push({ label: s, cat: 'habit' }));
+  answers.habitsToBuild.forEach((s) => entries.push({ label: s, cat: 'positive' }));
   answers.habitsToReduce.forEach((s) => entries.push({ label: `Reduce: ${s}`, cat: 'negative' }));
   answers.focusDomains.forEach((s) => entries.push({ label: `${s} focus`, cat: 'neutral' }));
 

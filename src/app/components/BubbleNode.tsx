@@ -91,12 +91,6 @@ export default function BubbleNode({
         borderColor: 'var(--red-ln)',
         color: 'var(--red)',
       };
-    } else if (bubble.cat === 'habit') {
-      return {
-        background: 'var(--blue-bg)',
-        borderColor: 'var(--blue-ln)',
-        color: 'var(--blue)',
-      };
     }
 
     return baseStyles;
@@ -105,7 +99,6 @@ export default function BubbleNode({
   const getDotColor = () => {
     if (bubble.cat === 'positive') return 'var(--green)';
     if (bubble.cat === 'negative') return 'var(--red)';
-    if (bubble.cat === 'habit') return 'var(--blue)';
     return 'var(--ink4)';
   };
 

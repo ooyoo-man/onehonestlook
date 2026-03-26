@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { ArchiveSettings, Bubble, Snapshot, Log, IntakeAnswers, FocusSprint } from './types';
+import { ArchiveSettings, Bubble, Snapshot, Log, IntakeAnswers, FocusSprint, DayReflection } from './types';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import Header from './components/Header';
 import MapView from './components/MapView';
 import ProgressView from './components/ProgressView';
+import TodayView from './components/TodayView';
 import ResourcesView from './components/ResourcesView';
 import LearnView from './components/LearnView';
 import ArchiveView from './components/ArchiveView';
@@ -13,28 +14,44 @@ import NoteModal from './components/modals/NoteModal';
 import ExploreBubbleModal from './components/modals/ExploreBubbleModal';
 import IntakeQuestionnaireModal, { buildStarterBubblesFromIntake } from './components/modals/IntakeQuestionnaireModal';
 import LoginPage from './components/LoginPage';
-import { getArchivePeriodKey, logKey } from './utils/helpers';
+import { getArchivePeriodKey, logKey, todayStr } from './utils/helpers';
 
-type View = 'map' | 'focus' | 'progress' | 'archive' | 'resources' | 'learn';
+type View = 'map' | 'today' | 'focus' | 'progress' | 'archive' | 'resources' | 'learn';
 
 export default function Root() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [bubbles, setBubbles] = useLocalStorage<Bubble[]>('ohl3-b', []);
   const [snapshots, setSnapshots] = useLocalStorage<Snapshot[]>('ohl3-s', []);
   const [logs, setLogs] = useLocalStorage<Record<string, Log>>('ohl3-l', {});
+  const [dayReflections, setDayReflections] = useLocalStorage<Record<string, DayReflection>>('ohl3-day-reflections', {});
   const [archiveSettings, setArchiveSettings] = useLocalStorage<ArchiveSettings>('ohl3-archive-settings', {
     autoArchiveEnabled: true,
     cadence: 'monthly',
   });
   const [focusSprint, setFocusSprint] = useLocalStorage<FocusSprint | null>('ohl3-focus-sprint', null);
   const [hasCompletedIntake, setHasCompletedIntake] = useLocalStorage<boolean>('ohl3-intake-done', false);
-  const [currentView, setCurrentView] = useState<View>('map');
+  const [currentView, setCurrentView] = useState<View>('today');
   const [showIntakeModal, setShowIntakeModal] = useState(false);
   const [showSnapshotModal, setShowSnapshotModal] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [showExploreModal, setShowExploreModal] = useState(false);
   const [noteContext, setNoteContext] = useState<{ bubbleId: number; dateStr: string } | null>(null);
   const [exploreBubble, setExploreBubble] = useState<Bubble | null>(null);
+
+  // Legacy: old data used cat "habit"; all bubbles are habits now (neutral / positive / negative).
+  useEffect(() => {
+    const fixCat = (b: Bubble): Bubble =>
+      (b as Bubble & { cat?: string }).cat === 'habit' ? { ...b, cat: 'neutral' } : b;
+
+    setBubbles((prev) => {
+      if (!prev.some((b) => (b as Bubble & { cat?: string }).cat === 'habit')) return prev;
+      return prev.map(fixCat);
+    });
+    setSnapshots((prev) => {
+      if (!prev.some((s) => s.bubbles.some((b) => (b as Bubble & { cat?: string }).cat === 'habit'))) return prev;
+      return prev.map((s) => ({ ...s, bubbles: s.bubbles.map(fixCat) }));
+    });
+  }, [setBubbles, setSnapshots]);
 
   // Seed fallback demo data only after intake is complete.
   useEffect(() => {
@@ -43,7 +60,7 @@ export default function Root() {
         { id: Date.now() + Math.random(), label: 'Family time', cat: 'positive' },
         { id: Date.now() + Math.random() + 0.1, label: 'Running', cat: 'positive' },
         { id: Date.now() + Math.random() + 0.2, label: 'Drinking', cat: 'negative' },
-        { id: Date.now() + Math.random() + 0.3, label: 'Gaming', cat: 'habit' },
+        { id: Date.now() + Math.random() + 0.3, label: 'Gaming', cat: 'neutral' },
         { id: Date.now() + Math.random() + 0.4, label: 'Work focus', cat: 'neutral' },
         { id: Date.now() + Math.random() + 0.5, label: 'Binge eating', cat: 'negative' },
         { id: Date.now() + Math.random() + 0.6, label: 'Learning', cat: 'positive' },
@@ -109,6 +126,7 @@ export default function Root() {
       bubbles,
       snapshots,
       logs,
+      dayReflections,
       archiveSettings,
       exported: new Date().toISOString(),
     };
@@ -200,14 +218,39 @@ export default function Root() {
       {currentView === 'progress' && (
         <ProgressView
           bubbles={bubbles}
-          snapshots={snapshots}
-          setSnapshots={setSnapshots}
           logs={logs}
-          setBubbles={setBubbles}
-          onOpenNoteModal={openNoteModal}
-          onBulkSetYN={bulkSetYN}
           onOpenSnapshotModal={() => setShowSnapshotModal(true)}
           onOpenArchive={() => setCurrentView('archive')}
+        />
+      )}
+
+      {currentView === 'today' && (
+        <TodayView
+          bubbles={bubbles}
+          logs={logs}
+          onBulkSetYN={bulkSetYN}
+          onOpenNoteModal={openNoteModal}
+          onGoToFocus={() => setCurrentView('focus')}
+          onOpenInMap={(bubbleId) => {
+            setCurrentView('map');
+            const b = bubbles.find((x) => x.id === bubbleId);
+            if (b) openExploreModal(b);
+          }}
+          onDeferBubble={(bubbleId, lane) => {
+            setBubbles((prev) => prev.map((b) => (b.id === bubbleId ? { ...b, priorityLane: lane } : b)));
+          }}
+          todayReflection={dayReflections[todayStr()]}
+          onSaveDayReflection={(whyMediocre, selfForgiveness) => {
+            const dateStr = todayStr();
+            setDayReflections((prev) => ({
+              ...prev,
+              [dateStr]: {
+                whyMediocre,
+                selfForgiveness,
+                updatedAt: new Date().toISOString(),
+              },
+            }));
+          }}
         />
       )}
 

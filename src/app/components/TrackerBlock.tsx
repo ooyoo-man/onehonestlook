@@ -25,6 +25,8 @@ export default function TrackerBlock({
   const [paintMode, setPaintMode] = useState<'yes' | 'no' | null>('yes');
   const [isPainting, setIsPainting] = useState(false);
 
+  const paintModeValue = paintMode === 'yes' ? 'yes' : paintMode === 'no' ? 'no' : 'clear';
+
   useEffect(() => {
     const stopPainting = () => setIsPainting(false);
     window.addEventListener('mouseup', stopPainting);
@@ -63,7 +65,6 @@ export default function TrackerBlock({
   const getCatStyles = () => {
     if (bubble.cat === 'positive') return { background: 'var(--green-bg)', color: 'var(--green)' };
     if (bubble.cat === 'negative') return { background: 'var(--red-bg)', color: 'var(--red)' };
-    if (bubble.cat === 'habit') return { background: 'var(--blue-bg)', color: 'var(--blue)' };
     return { background: 'var(--bg2)', color: 'var(--ink3)' };
   };
 
@@ -90,39 +91,46 @@ export default function TrackerBlock({
         <span className="text-[0.62rem] tracking-[0.08em] uppercase" style={{ color: 'var(--ink4)' }}>
           Paint mode
         </span>
-        <button
-          onClick={() => setPaintMode('yes')}
-          className="text-[0.64rem] px-2.5 py-1 rounded border transition-all duration-150 hover:opacity-85"
-          style={{
-            borderColor: 'var(--green-ln)',
-            background: paintMode === 'yes' ? 'var(--green-bg)' : 'var(--bg)',
-            color: 'var(--green)',
-          }}
-        >
-          Yes
-        </button>
-        <button
-          onClick={() => setPaintMode('no')}
-          className="text-[0.64rem] px-2.5 py-1 rounded border transition-all duration-150 hover:opacity-85"
-          style={{
-            borderColor: 'var(--red-ln)',
-            background: paintMode === 'no' ? 'var(--red-bg)' : 'var(--bg)',
-            color: 'var(--red)',
-          }}
-        >
-          No
-        </button>
-        <button
-          onClick={() => setPaintMode(null)}
-          className="text-[0.64rem] px-2.5 py-1 rounded border transition-all duration-150 hover:opacity-85"
-          style={{
-            borderColor: 'var(--rule)',
-            background: paintMode === null ? 'var(--bg3)' : 'var(--bg)',
-            color: 'var(--ink3)',
-          }}
-        >
-          Clear
-        </button>
+        <div className="flex items-center gap-2">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+          >
+            <path
+              d="M3 21c.3 0 .6-.1.9-.3l4.7-4.7c.4-.4.5-1 .3-1.5L7 9l5.5 1.9c.5.2 1.1.1 1.5-.3L19 5c.8-.8.8-2 0-2.8-.8-.8-2-.8-2.8 0l-4.1 4.1c-.4.4-.5 1-.3 1.5L11 12l-5.5-1.9c-.5-.2-1.1-.1-1.5.3L.9 15.1c-.2.3-.3.6-.3.9V21h2.4Z"
+              stroke="var(--gold)"
+              strokeWidth="1.6"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <select
+            value={paintModeValue}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === 'yes') setPaintMode('yes');
+              else if (v === 'no') setPaintMode('no');
+              else setPaintMode(null);
+            }}
+            className="text-[0.64rem] px-2.5 py-1 rounded border outline-none transition-all duration-150"
+            style={{
+              borderColor: 'var(--rule)',
+              background: 'var(--bg)',
+              color: 'var(--ink2)',
+              fontFamily: 'var(--font-b)',
+              maxWidth: 110,
+            }}
+            aria-label="Paint mode: Yes / No / Clear"
+            title="Choose what paint mode applies when you click + drag"
+          >
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+            <option value="clear">Clear</option>
+          </select>
+        </div>
         <span className="text-[0.62rem] ml-auto" style={{ color: 'var(--ink4)' }}>
           Click + drag over days
         </span>

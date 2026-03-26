@@ -1,44 +1,34 @@
 import { useMemo, useState } from 'react';
-import { Bubble, Snapshot, Log } from '../types';
-import { getYearFromDateIso, todayStr, logKey, mkDate, fmtDate } from '../utils/helpers';
-import TrackerBlock from './TrackerBlock';
-import SnapshotCard from './SnapshotCard';
-import ProgressSummaryCards from './progress/ProgressSummaryCards';
-import ProgressTrendLine from './progress/ProgressTrendLine';
-import ProgressFilters, { ProgressStatusFilter } from './progress/ProgressFilters';
+import { Bubble, Log } from '../types';
+import { todayStr, logKey, mkDate } from '../utils/helpers';
+import {
+  getCurrentGlobalStreak,
+  getNextMilestoneToCelebrate,
+  getStreakRunStartDateStr,
+  getSuccessRateLast30Days,
+  getWeekSummary,
+  recordStreakMilestoneCelebration,
+} from '../utils/streakMetrics';
+import StreakBadge from './progress/StreakBadge';
+import MilestoneCelebrationOverlay from './progress/MilestoneCelebrationOverlay';
+import WeeklySummaryCard from './progress/WeeklySummaryCard';
 
 interface ProgressViewProps {
   bubbles: Bubble[];
-  snapshots: Snapshot[];
-  setSnapshots: (snapshots: Snapshot[]) => void;
   logs: Record<string, Log>;
-  setBubbles: (bubbles: Bubble[]) => void;
-  onOpenNoteModal: (bubbleId: number, dateStr: string) => void;
-  onBulkSetYN: (bubbleId: number, dateStrs: string[], yn: 'yes' | 'no' | null) => void;
   onOpenSnapshotModal: () => void;
   onOpenArchive: () => void;
 }
 
 export default function ProgressView({
   bubbles,
-  snapshots,
-  setSnapshots,
   logs,
-  setBubbles,
-  onOpenNoteModal,
-  onBulkSetYN,
   onOpenSnapshotModal,
   onOpenArchive,
 }: ProgressViewProps) {
   const now = new Date();
   const [viewMonth, setViewMonth] = useState({ y: now.getFullYear(), m: now.getMonth() });
-  const [activeYear, setActiveYear] = useState<number | 'all'>('all');
-  const [activeCategory, setActiveCategory] = useState<'all' | Bubble['cat']>('all');
-  const [activeStatus, setActiveStatus] = useState<ProgressStatusFilter>('all');
-  const [selectedDate, setSelectedDate] = useState<string>(todayStr());
-  const [searchQuery, setSearchQuery] = useState('');
-  const [groupBy, setGroupBy] = useState<'none' | 'category' | 'lane'>('category');
-  const [sortBy, setSortBy] = useState<'name' | 'consistency-desc' | 'consistency-asc'>('consistency-desc');
+  const [milestoneStoreTick, setMilestoneStoreTick] = useState(0);
 
   const MONTHS = [
     'January',
@@ -70,12 +60,6 @@ export default function ProgressView({
   };
 
   const daysInViewMonth = new Date(viewMonth.y, viewMonth.m + 1, 0).getDate();
-  const monthLabel = `${MONTHS[viewMonth.m]} ${viewMonth.y}`;
-
-  const categoryFilteredBubbles = useMemo(() => {
-    if (activeCategory === 'all') return bubbles;
-    return bubbles.filter(b => b.cat === activeCategory);
-  }, [activeCategory, bubbles]);
 
   const getStatusForBubbleOnDate = (bubble: Bubble, dateStr: string) => {
     const entry = logs[logKey(bubble.id, dateStr)];
@@ -84,192 +68,81 @@ export default function ProgressView({
     return 'unlogged';
   };
 
-  const statusFilteredBubbles = useMemo(() => {
-    if (activeStatus === 'all') return categoryFilteredBubbles;
-    return categoryFilteredBubbles.filter(b => getStatusForBubbleOnDate(b, selectedDate) === activeStatus);
-  }, [activeStatus, categoryFilteredBubbles, selectedDate, logs]);
+  const globalStreak = useMemo(() => getCurrentGlobalStreak(bubbles, logs), [bubbles, logs]);
+  const streakRunStart = useMemo(() => getStreakRunStartDateStr(globalStreak), [globalStreak]);
+  const milestoneToCelebrate = useMemo(
+    () => getNextMilestoneToCelebrate(globalStreak, streakRunStart),
+    [globalStreak, streakRunStart, milestoneStoreTick]
+  );
+  const successRate30 = useMemo(
+    () => getSuccessRateLast30Days(bubbles, logs),
+    [bubbles, logs]
+  );
 
-  const getMonthConsistency = (bubble: Bubble) => {
-    let yes = 0;
-    let logged = 0;
-    for (let d = 1; d <= daysInViewMonth; d++) {
-      const ds = mkDate(viewMonth.y, viewMonth.m, d);
-      const status = getStatusForBubbleOnDate(bubble, ds);
-      if (status === 'done') {
-        yes++;
-        logged++;
-      } else if (status === 'missed') {
-        logged++;
-      }
-    }
-    return logged > 0 ? yes / logged : 0;
-  };
+  const weeklySummary = useMemo(() => {
+    if (new Date().getDay() !== 0) return null;
+    return getWeekSummary(bubbles, logs, new Date());
+  }, [bubbles, logs]);
 
-  const organizedBubbles = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    let list = statusFilteredBubbles.filter((b) => (q ? b.label.toLowerCase().includes(q) : true));
+  const habitMetrics = useMemo(() => {
+    const today = new Date(todayStr() + 'T12:00:00');
+    const isCurrentViewMonth = today.getFullYear() === viewMonth.y && today.getMonth() === viewMonth.m;
+    const daysToCount = isCurrentViewMonth ? Math.min(today.getDate(), daysInViewMonth) : daysInViewMonth;
+    const habitBubbles = bubbles;
 
-    list = [...list].sort((a, b) => {
-      if (sortBy === 'name') return a.label.localeCompare(b.label);
-      const diff = getMonthConsistency(b) - getMonthConsistency(a);
-      return sortBy === 'consistency-desc' ? diff : -diff;
-    });
-    return list;
-  }, [statusFilteredBubbles, searchQuery, sortBy, viewMonth, logs]);
-
-  const groupedBubbles = useMemo(() => {
-    if (groupBy === 'none') {
-      return [{ key: 'all', title: 'All items', items: organizedBubbles }];
-    }
-    if (groupBy === 'category') {
-      const order: Bubble['cat'][] = ['positive', 'negative', 'habit', 'neutral'];
-      const titles: Record<Bubble['cat'], string> = {
-        positive: 'Positive',
-        negative: 'Needs work',
-        habit: 'Habits',
-        neutral: 'Neutral',
-      };
-      return order
-        .map((cat) => ({
-          key: cat,
-          title: titles[cat],
-          items: organizedBubbles.filter((b) => b.cat === cat),
-        }))
-        .filter((g) => g.items.length > 0);
-    }
-    const order: Array<'now' | 'next' | 'later'> = ['now', 'next', 'later'];
-    const titles: Record<'now' | 'next' | 'later', string> = {
-      now: 'Now',
-      next: 'Next',
-      later: 'Later',
-    };
-    return order
-      .map((lane) => ({
-        key: lane,
-        title: `${titles[lane]} focus`,
-        items: organizedBubbles.filter((b) => (b.priorityLane ?? 'later') === lane),
-      }))
-      .filter((g) => g.items.length > 0);
-  }, [organizedBubbles, groupBy]);
-
-  const trendPoints = useMemo(() => {
-    const todayISO = todayStr();
-    return Array.from({ length: daysInViewMonth }, (_, idx) => {
-      const day = idx + 1;
-      const date = mkDate(viewMonth.y, viewMonth.m, day);
-      const isFuture = date > todayISO;
-
-      let done = 0;
-      let considered = 0;
-      for (const bubble of categoryFilteredBubbles) {
-        const status = getStatusForBubbleOnDate(bubble, date);
-        if (status === 'done') {
-          done++;
-          considered++;
-        } else if (status === 'missed') {
-          considered++;
+    const getCurrentStreakForBubble = (bubble: Bubble) => {
+      let streak = 0;
+      const cursor = new Date(today);
+      for (;;) {
+        const dateStr = cursor.toISOString().slice(0, 10);
+        if (getStatusForBubbleOnDate(bubble, dateStr) === 'done') {
+          streak += 1;
+          cursor.setDate(cursor.getDate() - 1);
+          continue;
         }
+        break;
       }
+      return streak;
+    };
+
+    return habitBubbles.map((bubble) => {
+      let done = 0;
+      let missed = 0;
+      let unlogged = 0;
+      for (let d = 1; d <= daysToCount; d++) {
+        const dateStr = mkDate(viewMonth.y, viewMonth.m, d);
+        const status = getStatusForBubbleOnDate(bubble, dateStr);
+        if (status === 'done') done += 1;
+        else if (status === 'missed') missed += 1;
+        else unlogged += 1;
+      }
+
+      const loggedDays = done + missed;
+      const consistency = loggedDays > 0 ? Math.round((done / loggedDays) * 100) : 0;
 
       return {
-        date,
-        day,
-        ratio: considered > 0 ? done / considered : null,
-        isFuture,
-        isSelected: date === selectedDate,
+        bubble,
+        daysToCount,
+        done,
+        missed,
+        unlogged,
+        consistency,
+        currentStreak: getCurrentStreakForBubble(bubble),
       };
     });
-  }, [daysInViewMonth, viewMonth, categoryFilteredBubbles, logs, selectedDate]);
-
-  const getRollingCompletionRate = (windowDays: number) => {
-    const end = new Date(todayStr() + 'T12:00:00');
-    let done = 0;
-    let considered = 0;
-
-    for (let i = 0; i < windowDays; i++) {
-      const d = new Date(end);
-      d.setDate(end.getDate() - i);
-      const dateStr = d.toISOString().slice(0, 10);
-      for (const bubble of categoryFilteredBubbles) {
-        const status = getStatusForBubbleOnDate(bubble, dateStr);
-        if (status === 'done') {
-          done++;
-          considered++;
-        } else if (status === 'missed') {
-          considered++;
-        }
-      }
-    }
-
-    return considered > 0 ? Math.round((done / considered) * 100) : 0;
-  };
-
-  const getStreaks = () => {
-    const today = new Date(todayStr() + 'T12:00:00');
-    const start = new Date(today);
-    start.setDate(today.getDate() - 365);
-
-    const dailyAnyDone: Array<{ date: string; done: boolean }> = [];
-    const cursor = new Date(start);
-    while (cursor <= today) {
-      const dateStr = cursor.toISOString().slice(0, 10);
-      const done = categoryFilteredBubbles.some(b => getStatusForBubbleOnDate(b, dateStr) === 'done');
-      dailyAnyDone.push({ date: dateStr, done });
-      cursor.setDate(cursor.getDate() + 1);
-    }
-
-    let longest = 0;
-    let running = 0;
-    for (const d of dailyAnyDone) {
-      if (d.done) {
-        running += 1;
-        if (running > longest) longest = running;
-      } else {
-        running = 0;
-      }
-    }
-
-    let current = 0;
-    for (let i = dailyAnyDone.length - 1; i >= 0; i--) {
-      if (dailyAnyDone[i].done) current += 1;
-      else break;
-    }
-
-    return { current, longest };
-  };
-
-  const rate7 = getRollingCompletionRate(7);
-  const rate30 = getRollingCompletionRate(30);
-  const rate90 = getRollingCompletionRate(90);
-  const streaks = getStreaks();
-
-  const deleteSnapshot = (id: number) => {
-    if (window.confirm('Delete this snapshot?')) {
-      setSnapshots(snapshots.filter(s => s.id !== id));
-    }
-  };
-
-  const restoreSnapshot = (id: number) => {
-    const snap = snapshots.find(s => s.id === id);
-    if (!snap || !window.confirm(`Restore "${snap.name}"? Your current map will be replaced.`)) return;
-    setBubbles(JSON.parse(JSON.stringify(snap.bubbles)));
-  };
-
-  const snapshotYears = useMemo(() => {
-    const years = Array.from(new Set(snapshots.map(s => getYearFromDateIso(s.date))));
-    return years.sort((a, b) => b - a);
-  }, [snapshots]);
-
-  const filteredSnapshots = useMemo(() => {
-    if (activeYear === 'all') return snapshots;
-    return snapshots.filter(s => getYearFromDateIso(s.date) === activeYear);
-  }, [activeYear, snapshots]);
-
-  const manualCount = filteredSnapshots.filter(s => (s.source ?? 'manual') === 'manual').length;
-  const autoCount = filteredSnapshots.filter(s => (s.source ?? 'manual') === 'auto').length;
+  }, [bubbles, daysInViewMonth, logs, viewMonth]);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
+      {milestoneToCelebrate && streakRunStart ? (
+        <MilestoneCelebrationOverlay
+          milestone={milestoneToCelebrate}
+          onDismiss={() => {
+            recordStreakMilestoneCelebration(streakRunStart, milestoneToCelebrate);
+            setMilestoneStoreTick((t) => t + 1);
+          }}
+        />
+      ) : null}
       <div className="flex-1 overflow-y-auto px-8 py-7 pb-12">
         <div className="max-w-[860px] mx-auto">
           {/* Header */}
@@ -279,7 +152,7 @@ export default function ProgressView({
                 Progress
               </div>
               <div className="text-[0.72rem] leading-relaxed mt-1" style={{ color: 'var(--ink3)' }}>
-                Daily tracking across every bubble, plus map snapshots.
+                Every bubble is a habit—monthly summary across neutral, positive, and needs work.
               </div>
             </div>
             <button
@@ -295,77 +168,39 @@ export default function ProgressView({
             </button>
           </div>
 
-          {/* Daily Tracker */}
-          <div className="text-[0.65rem] font-medium tracking-[0.12em] uppercase mb-4" style={{ color: 'var(--ink3)' }}>
-            Daily Tracker
-          </div>
-
-          <ProgressSummaryCards
-            rate7={rate7}
-            rate30={rate30}
-            rate90={rate90}
-            currentStreak={streaks.current}
-            longestStreak={streaks.longest}
-          />
-
-          <ProgressTrendLine
-            monthLabel={monthLabel}
-            points={trendPoints}
-            onSelectDate={(date) => setSelectedDate(date)}
-          />
-
-          <ProgressFilters
-            activeCategory={activeCategory}
-            onCategoryChange={setActiveCategory}
-            activeStatus={activeStatus}
-            onStatusChange={setActiveStatus}
-          />
-
-          {/* Organization tools */}
-          <div className="rounded-[10px] border p-3 mb-5" style={{ background: 'var(--bg)', borderColor: 'var(--rule)' }}>
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="text-[0.62rem] tracking-[0.08em] uppercase mr-1" style={{ color: 'var(--ink4)' }}>
-                Organize
-              </div>
-              <input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search items..."
-                className="text-[0.68rem] px-2.5 py-1 rounded-md border outline-none min-w-[170px]"
-                style={{ borderColor: 'var(--rule)', background: 'var(--bg2)', color: 'var(--ink2)' }}
-              />
-              <select
-                value={groupBy}
-                onChange={(e) => setGroupBy(e.target.value as 'none' | 'category' | 'lane')}
-                className="text-[0.66rem] px-2 py-1 rounded-md border outline-none"
-                style={{ borderColor: 'var(--rule)', background: 'var(--bg)', color: 'var(--ink2)' }}
+          <div className="flex flex-wrap items-stretch gap-4 mb-6">
+            <StreakBadge days={globalStreak} />
+            <div
+              className="flex-1 min-w-[200px] rounded-[10px] border px-4 py-3 flex flex-col justify-center"
+              style={{ background: 'var(--bg)', borderColor: 'var(--rule)' }}
+              title="Share of the last 30 days where you marked at least one habit done"
+            >
+              <span className="text-[0.58rem] tracking-[0.1em] uppercase" style={{ color: 'var(--ink4)' }}>
+                Success rate
+              </span>
+              <span
+                className="text-[1.35rem] font-semibold tabular-nums mt-1"
+                style={{ fontFamily: 'var(--font-b)', color: 'var(--ink)' }}
               >
-                <option value="none">Group: None</option>
-                <option value="category">Group: Category</option>
-                <option value="lane">Group: Focus lane</option>
-              </select>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as 'name' | 'consistency-desc' | 'consistency-asc')}
-                className="text-[0.66rem] px-2 py-1 rounded-md border outline-none"
-                style={{ borderColor: 'var(--rule)', background: 'var(--bg)', color: 'var(--ink2)' }}
-              >
-                <option value="consistency-desc">Sort: Consistency (high → low)</option>
-                <option value="consistency-asc">Sort: Consistency (low → high)</option>
-                <option value="name">Sort: Name</option>
-              </select>
-              <span className="text-[0.66rem] ml-auto" style={{ color: 'var(--ink4)' }}>
-                Showing {organizedBubbles.length} item{organizedBubbles.length === 1 ? '' : 's'}
+                {successRate30 != null ? `${successRate30}%` : '—'}
+              </span>
+              <span className="text-[0.65rem] mt-0.5" style={{ color: 'var(--ink3)' }}>
+                Last 30 days
               </span>
             </div>
           </div>
 
           {/* Month navigation */}
-          <div className="flex items-center gap-2 mb-5">
+          <div className="flex items-center gap-2 mb-6">
+            <span className="text-[0.62rem] tracking-[0.08em] uppercase mr-1" style={{ color: 'var(--ink4)' }}>
+              Month
+            </span>
             <button
+              type="button"
               onClick={() => changeMonth(-1)}
               className="w-[26px] h-[26px] rounded-full bg-transparent border cursor-pointer text-[0.8rem] flex items-center justify-center transition-all duration-150 hover:opacity-80"
               style={{ borderColor: 'var(--rule)', color: 'var(--ink3)' }}
+              aria-label="Previous month"
             >
               ‹
             </button>
@@ -376,147 +211,84 @@ export default function ProgressView({
               {MONTHS[viewMonth.m]} {viewMonth.y}
             </span>
             <button
+              type="button"
               onClick={() => changeMonth(1)}
               className="w-[26px] h-[26px] rounded-full bg-transparent border cursor-pointer text-[0.8rem] flex items-center justify-center transition-all duration-150 hover:opacity-80"
               style={{ borderColor: 'var(--rule)', color: 'var(--ink3)' }}
+              aria-label="Next month"
             >
               ›
             </button>
           </div>
 
-          {/* Tracker blocks */}
-          {organizedBubbles.length === 0 ? (
-            <div className="text-center py-12" style={{ color: 'var(--ink3)' }}>
-              <span
-                style={{ fontFamily: 'var(--font-h)', color: 'var(--ink4)' }}
-                className="text-[1.6rem] italic block mb-3"
-              >
-                —
-              </span>
-              <p className="text-[0.76rem] leading-[1.9]">
-                {bubbles.length === 0 ? (
-                  <>
-                    Add bubbles to your map first,
-                    <br />
-                    then track your daily progress here.
-                  </>
-                ) : (
-                  <>
-                    No items match this filter or search.
-                    <br />
-                    Try another category or status.
-                  </>
-                )}
-              </p>
-            </div>
-          ) : (
-            groupedBubbles.map((group) => (
-              <div key={group.key}>
-                {groupBy !== 'none' && (
-                  <div
-                    className="text-[0.65rem] font-medium tracking-[0.12em] uppercase mb-3"
-                    style={{ color: 'var(--ink3)' }}
-                  >
-                    {group.title} ({group.items.length})
-                  </div>
-                )}
-                {group.items.map((bubble) => (
-                  <TrackerBlock
-                    key={bubble.id}
-                    bubble={bubble}
-                    viewMonth={viewMonth}
-                    logs={logs}
-                    onOpenNoteModal={onOpenNoteModal}
-                    highlightedDate={selectedDate}
-                    onBulkSetYN={onBulkSetYN}
-                  />
-                ))}
-              </div>
-            ))
-          )}
+          {weeklySummary ? <WeeklySummaryCard stats={weeklySummary} /> : null}
 
-          {/* Snapshots */}
-          <div className="text-[0.65rem] font-medium tracking-[0.12em] uppercase mb-4 mt-10" style={{ color: 'var(--ink3)' }}>
-            Map Snapshots
+          <div className="text-[0.65rem] font-medium tracking-[0.12em] uppercase mb-3" style={{ color: 'var(--ink3)' }}>
+            Monthly habit counts
           </div>
 
-          <div className="rounded-[10px] border p-4 mb-4" style={{ background: 'var(--bg)', borderColor: 'var(--rule)' }}>
-            <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+          {habitMetrics.length === 0 ? (
+            <div className="rounded-[10px] border p-4 mb-5" style={{ background: 'var(--bg)', borderColor: 'var(--rule)' }}>
+              <div className="text-[0.72rem]" style={{ color: 'var(--ink3)' }}>
+                No items yet. Add habits in Map to see monthly counts here.
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2.5 mb-5">
+              {habitMetrics.map(({ bubble, daysToCount, done, missed, unlogged, consistency, currentStreak }) => (
+                <div
+                  key={bubble.id}
+                  className="rounded-[10px] border p-3"
+                  style={{ background: 'var(--bg)', borderColor: 'var(--rule)' }}
+                >
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="text-[0.83rem] font-medium" style={{ color: 'var(--ink)' }}>
+                      {bubble.label}
+                    </div>
+                    <div className="text-[0.7rem]" style={{ color: 'var(--ink3)' }}>
+                      Streak: <strong style={{ color: 'var(--ink)' }}>{currentStreak}</strong>
+                    </div>
+                  </div>
+
+                  <div className="mt-2 flex items-center gap-3 flex-wrap text-[0.68rem]" style={{ color: 'var(--ink3)' }}>
+                    <span>
+                      Completed: <strong style={{ color: 'var(--ink)' }}>{done}</strong>/{daysToCount}
+                    </span>
+                    <span>
+                      Not done: <strong style={{ color: 'var(--red)' }}>{missed}</strong>
+                    </span>
+                    <span>
+                      Unlogged: <strong style={{ color: 'var(--ink4)' }}>{unlogged}</strong>
+                    </span>
+                    <span>
+                      Consistency: <strong style={{ color: 'var(--ink)' }}>{consistency}%</strong>
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div
+            className="rounded-[10px] border p-4 mb-4"
+            style={{ background: 'var(--bg)', borderColor: 'var(--rule)' }}
+          >
+            <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
               <div className="text-[0.72rem]" style={{ color: 'var(--ink2)' }}>
-                Archive Summary
+                Snapshots & restore
               </div>
               <button
                 onClick={onOpenArchive}
                 className="text-[0.68rem] underline underline-offset-2 hover:opacity-80"
                 style={{ color: 'var(--gold)', fontFamily: 'var(--font-b)' }}
               >
-                Open full Archive →
+                Open Archive →
               </button>
             </div>
-
-            <div className="flex flex-wrap items-center gap-1.5 mb-3">
-              <button
-                onClick={() => setActiveYear('all')}
-                className="text-[0.66rem] px-2.5 py-1 rounded-full border transition-all duration-150"
-                style={{
-                  fontFamily: 'var(--font-b)',
-                  background: activeYear === 'all' ? 'var(--bg2)' : 'transparent',
-                  borderColor: 'var(--rule)',
-                  color: activeYear === 'all' ? 'var(--ink)' : 'var(--ink3)',
-                }}
-              >
-                All years
-              </button>
-              {snapshotYears.map(y => (
-                <button
-                  key={y}
-                  onClick={() => setActiveYear(y)}
-                  className="text-[0.66rem] px-2.5 py-1 rounded-full border transition-all duration-150"
-                  style={{
-                    fontFamily: 'var(--font-b)',
-                    background: activeYear === y ? 'var(--bg2)' : 'transparent',
-                    borderColor: 'var(--rule)',
-                    color: activeYear === y ? 'var(--ink)' : 'var(--ink3)',
-                  }}
-                >
-                  {y}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex items-center gap-4 text-[0.68rem]" style={{ color: 'var(--ink3)' }}>
-              <span>Total: <strong style={{ color: 'var(--ink)' }}>{filteredSnapshots.length}</strong></span>
-              <span>Manual: <strong style={{ color: 'var(--ink)' }}>{manualCount}</strong></span>
-              <span>Auto: <strong style={{ color: 'var(--ink)' }}>{autoCount}</strong></span>
+            <div className="text-[0.62rem]" style={{ color: 'var(--ink4)' }}>
+              Snapshot history and management live in the Archive tab.
             </div>
           </div>
-
-          {filteredSnapshots.length === 0 ? (
-            <div className="text-center py-12" style={{ color: 'var(--ink3)' }}>
-              <span
-                style={{ fontFamily: 'var(--font-h)', color: 'var(--ink4)' }}
-                className="text-[1.6rem] italic block mb-3"
-              >
-                —
-              </span>
-              <p className="text-[0.76rem] leading-[1.9]">
-                No snapshots in this range yet.
-                <br />
-                Hit <strong>Snapshot</strong> in the header to freeze your map.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(255px,1fr))] gap-3">
-              {filteredSnapshots.map(snapshot => (
-                <SnapshotCard
-                  key={snapshot.id}
-                  snapshot={snapshot}
-                  onDelete={deleteSnapshot}
-                  onRestore={restoreSnapshot}
-                />
-              ))}
-            </div>
-          )}
         </div>
       </div>
     </div>

@@ -1,7 +1,8 @@
 export interface Bubble {
   id: number;
   label: string;
-  cat: 'neutral' | 'positive' | 'negative' | 'habit';
+  /** Every bubble is a habit; this is the kind of habit. */
+  cat: 'neutral' | 'positive' | 'negative';
   priorityLane?: 'now' | 'next' | 'later';
   focusOrder?: number;
   x: number;
@@ -24,6 +25,13 @@ export interface Snapshot {
 export interface Log {
   yn: 'yes' | 'no' | null;
   note: string;
+}
+
+/** Private same-day check-in: why the day felt hard + self-forgiveness (stored locally by date). */
+export interface DayReflection {
+  whyMediocre: string;
+  selfForgiveness: string;
+  updatedAt: string;
 }
 
 export interface ArchiveSettings {

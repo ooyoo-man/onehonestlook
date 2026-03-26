@@ -1,4 +1,4 @@
-type View = 'map' | 'focus' | 'progress' | 'archive' | 'resources' | 'learn';
+type View = 'map' | 'today' | 'focus' | 'progress' | 'archive' | 'resources' | 'learn';
 
 interface HeaderProps {
   currentView: View;
@@ -39,6 +39,22 @@ export default function Header({ currentView, onViewChange, onSnapshot, onExport
           Map
         </button>
         <button
+          onClick={() => onViewChange('today')}
+          className={`text-[0.71rem] font-medium px-3 py-1.5 rounded-md border-none transition-all duration-150 tracking-wide whitespace-nowrap ${
+            currentView === 'today'
+              ? 'shadow-sm'
+              : ''
+          }`}
+          style={{
+            fontFamily: 'var(--font-b)',
+            background: currentView === 'today' ? 'var(--bg)' : 'transparent',
+            color: currentView === 'today' ? 'var(--ink)' : 'var(--ink3)',
+            boxShadow: currentView === 'today' ? '0 1px 3px rgba(30,28,24,0.09)' : 'none',
+          }}
+        >
+          Today
+        </button>
+        <button
           onClick={() => onViewChange('progress')}
           className={`text-[0.71rem] font-medium px-3 py-1.5 rounded-md border-none transition-all duration-150 tracking-wide whitespace-nowrap ${
             currentView === 'progress'
@@ -71,6 +87,22 @@ export default function Header({ currentView, onViewChange, onSnapshot, onExport
           Focus
         </button>
         <button
+          onClick={() => onViewChange('learn')}
+          className={`text-[0.71rem] font-medium px-3 py-1.5 rounded-md border-none transition-all duration-150 tracking-wide whitespace-nowrap ${
+            currentView === 'learn'
+              ? 'shadow-sm'
+              : ''
+          }`}
+          style={{
+            fontFamily: 'var(--font-b)',
+            background: currentView === 'learn' ? 'var(--bg)' : 'transparent',
+            color: currentView === 'learn' ? 'var(--ink)' : 'var(--ink3)',
+            boxShadow: currentView === 'learn' ? '0 1px 3px rgba(30,28,24,0.09)' : 'none',
+          }}
+        >
+          Learn
+        </button>
+        <button
           onClick={() => onViewChange('resources')}
           className={`text-[0.71rem] font-medium px-3 py-1.5 rounded-md border-none transition-all duration-150 tracking-wide whitespace-nowrap ${
             currentView === 'resources'
@@ -101,22 +133,6 @@ export default function Header({ currentView, onViewChange, onSnapshot, onExport
           }}
         >
           Archive
-        </button>
-        <button
-          onClick={() => onViewChange('learn')}
-          className={`text-[0.71rem] font-medium px-3 py-1.5 rounded-md border-none transition-all duration-150 tracking-wide whitespace-nowrap ${
-            currentView === 'learn'
-              ? 'shadow-sm'
-              : ''
-          }`}
-          style={{
-            fontFamily: 'var(--font-b)',
-            background: currentView === 'learn' ? 'var(--bg)' : 'transparent',
-            color: currentView === 'learn' ? 'var(--ink)' : 'var(--ink3)',
-            boxShadow: currentView === 'learn' ? '0 1px 3px rgba(30,28,24,0.09)' : 'none',
-          }}
-        >
-          Learn
         </button>
       </div>
 

@@ -55,28 +55,6 @@ const EXPLORATION_QUESTIONS = {
       prompt: 'What healthier alternatives might serve you better?'
     }
   ],
-  habit: [
-    {
-      id: 'purpose',
-      question: 'What purpose does this serve?',
-      prompt: 'Why did you start this habit, or why do you continue it?'
-    },
-    {
-      id: 'serving',
-      question: 'Is this still serving you?',
-      prompt: 'Does this habit align with who you want to be?'
-    },
-    {
-      id: 'modify',
-      question: 'How might you refine this?',
-      prompt: 'What small adjustments could make this more beneficial?'
-    },
-    {
-      id: 'context',
-      question: 'When does this work best for you?',
-      prompt: 'What conditions help you maintain this habit?'
-    }
-  ],
   neutral: [
     {
       id: 'role',
@@ -133,16 +111,15 @@ export default function ExploreBubbleModal({
     switch (cat) {
       case 'positive': return 'var(--blue-md)';
       case 'negative': return 'var(--red-md)';
-      case 'habit': return 'var(--gold-dk)';
       default: return 'var(--ink3)';
     }
   };
 
   const getCategoryLabel = (cat: string) => {
     switch (cat) {
-      case 'positive': return 'Growth Area';
-      case 'negative': return 'Challenge';
-      case 'habit': return 'Habit';
+      case 'positive': return 'Positive habit';
+      case 'negative': return 'Needs work habit';
+      case 'neutral': return 'Neutral habit';
       default: return 'Reflection';
     }
   };

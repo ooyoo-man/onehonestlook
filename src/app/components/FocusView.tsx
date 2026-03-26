@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import type { DragEvent as ReactDragEvent } from 'react';
 import { Bubble, FocusSprint } from '../types';
 
 interface FocusViewProps {
@@ -13,6 +15,14 @@ export default function FocusView({ bubbles, setBubbles, focusSprint, setFocusSp
   const nowItems = bubbles.filter((b) => (b.priorityLane ?? 'later') === 'now');
   const nextItems = bubbles.filter((b) => (b.priorityLane ?? 'later') === 'next');
   const laterItems = bubbles.filter((b) => (b.priorityLane ?? 'later') === 'later');
+  const nowFull = nowItems.length >= MAX_NOW;
+  const [draggingBubbleId, setDraggingBubbleId] = useState<number | null>(null);
+  const [dragOverLane, setDragOverLane] = useState<'now' | 'next' | 'later' | null>(null);
+
+  const draggingLane: 'now' | 'next' | 'later' | null =
+    draggingBubbleId != null
+      ? ((bubbles.find((b) => b.id === draggingBubbleId)?.priorityLane ?? 'later') as 'now' | 'next' | 'later')
+      : null;
 
   const daysLeft = focusSprint
     ? Math.max(
@@ -29,6 +39,18 @@ export default function FocusView({ bubbles, setBubbles, focusSprint, setFocusSp
       return;
     }
     setBubbles(bubbles.map((b) => (b.id === bubbleId ? { ...b, priorityLane: lane } : b)));
+  };
+
+  const onDragStartBubble = (bubbleId: number, e: ReactDragEvent<HTMLDivElement>) => {
+    setDraggingBubbleId(bubbleId);
+    // Some browsers require data to be present for drops to fire reliably.
+    e.dataTransfer.setData('text/plain', String(bubbleId));
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const onDragEndBubble = () => {
+    setDraggingBubbleId(null);
+    setDragOverLane(null);
   };
 
   const startSprint = (days: 7 | 14 | 30) => {
@@ -117,6 +139,12 @@ export default function FocusView({ bubbles, setBubbles, focusSprint, setFocusSp
               bubbles={nowItems}
               lane="now"
               onMove={moveBubbleToLane}
+              nowFull={nowFull}
+              draggingLane={draggingLane}
+              dragOverLane={dragOverLane}
+              setDragOverLane={setDragOverLane}
+              onDragStartBubble={onDragStartBubble}
+              onDragEndBubble={onDragEndBubble}
             />
             <LaneColumn
               title={`Next (${nextItems.length})`}
@@ -124,6 +152,12 @@ export default function FocusView({ bubbles, setBubbles, focusSprint, setFocusSp
               bubbles={nextItems}
               lane="next"
               onMove={moveBubbleToLane}
+              nowFull={nowFull}
+              draggingLane={draggingLane}
+              dragOverLane={dragOverLane}
+              setDragOverLane={setDragOverLane}
+              onDragStartBubble={onDragStartBubble}
+              onDragEndBubble={onDragEndBubble}
             />
             <LaneColumn
               title={`Later (${laterItems.length})`}
@@ -131,6 +165,12 @@ export default function FocusView({ bubbles, setBubbles, focusSprint, setFocusSp
               bubbles={laterItems}
               lane="later"
               onMove={moveBubbleToLane}
+              nowFull={nowFull}
+              draggingLane={draggingLane}
+              dragOverLane={dragOverLane}
+              setDragOverLane={setDragOverLane}
+              onDragStartBubble={onDragStartBubble}
+              onDragEndBubble={onDragEndBubble}
             />
           </div>
         </div>
@@ -145,16 +185,56 @@ function LaneColumn({
   bubbles,
   lane,
   onMove,
+  nowFull,
+  draggingLane,
+  dragOverLane,
+  setDragOverLane,
+  onDragStartBubble,
+  onDragEndBubble,
 }: {
   title: string;
   subtitle: string;
   bubbles: Bubble[];
   lane: 'now' | 'next' | 'later';
   onMove: (id: number, lane: 'now' | 'next' | 'later') => void;
+  nowFull: boolean;
+  draggingLane: 'now' | 'next' | 'later' | null;
+  dragOverLane: 'now' | 'next' | 'later' | null;
+  setDragOverLane: (lane: 'now' | 'next' | 'later' | null) => void;
+  onDragStartBubble: (bubbleId: number, e: ReactDragEvent<HTMLDivElement>) => void;
+  onDragEndBubble: () => void;
 }) {
-  const cardStyle = { background: 'var(--bg)', borderColor: 'var(--rule)' };
+  const isDropDisabled = lane === 'now' && nowFull && draggingLane !== 'now';
+  const isDragOver = dragOverLane === lane;
+
+  const cardStyle = {
+    background: 'var(--bg)',
+    borderColor: isDragOver ? 'rgba(202,166,67,0.9)' : 'var(--rule)',
+    opacity: isDropDisabled ? 0.65 : 1,
+  };
+  const dropHint = isDropDisabled ? 'Now is full' : 'Drag here to move';
+
   return (
-    <div className="rounded-[10px] border p-3 min-h-[260px]" style={cardStyle}>
+    <div
+      className="rounded-[10px] border p-3 min-h-[260px] transition-colors"
+      style={cardStyle}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = isDropDisabled ? 'none' : 'move';
+        setDragOverLane(lane);
+      }}
+      onDragLeave={() => setDragOverLane(null)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragOverLane(null);
+        const idStr = e.dataTransfer.getData('text/plain');
+        const bubbleId = Number(idStr);
+        if (!Number.isFinite(bubbleId)) return;
+        if (isDropDisabled) return;
+        onMove(bubbleId, lane);
+        onDragEndBubble();
+      }}
+    >
       <div className="mb-2">
         <div style={{ fontFamily: 'var(--font-h)', color: 'var(--ink)' }} className="text-[0.96rem] italic">
           {title}
@@ -169,23 +249,23 @@ function LaneColumn({
           </div>
         ) : (
           bubbles.map((b) => (
-            <div key={b.id} className="rounded-md border p-2" style={{ borderColor: 'var(--rule2)', background: 'var(--bg2)' }}>
+            <div
+              key={b.id}
+              draggable
+              onDragStart={(e) => onDragStartBubble(b.id, e)}
+              onDragEnd={onDragEndBubble}
+              className="rounded-md border p-2 cursor-grab active:cursor-grabbing select-none"
+              style={{ borderColor: 'var(--rule2)', background: 'var(--bg2)' }}
+              title="Drag to move"
+            >
               <div className="text-[0.76rem] font-medium" style={{ color: 'var(--ink)' }}>{b.label}</div>
-              <div className="flex gap-1 mt-2 flex-wrap">
-                {(['now', 'next', 'later'] as const).filter((x) => x !== lane).map((target) => (
-                  <button
-                    key={target}
-                    onClick={() => onMove(b.id, target)}
-                    className="text-[0.62rem] px-2 py-0.5 rounded-full border transition-all duration-150 hover:opacity-85"
-                    style={{ borderColor: 'var(--rule)', background: 'var(--bg)', color: 'var(--ink3)' }}
-                  >
-                    Move to {target}
-                  </button>
-                ))}
-              </div>
             </div>
           ))
         )}
+      </div>
+
+      <div className="mt-3 text-[0.62rem]" style={{ color: 'var(--ink4)' }}>
+        {dropHint}
       </div>
     </div>
   );

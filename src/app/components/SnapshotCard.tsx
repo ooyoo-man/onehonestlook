@@ -25,7 +25,6 @@ export default function SnapshotCard({ snapshot, onDelete, onRestore }: Snapshot
   const getTagStyles = (cat: string) => {
     if (cat === 'positive') return { background: 'var(--green-bg)', color: 'var(--green)' };
     if (cat === 'negative') return { background: 'var(--red-bg)', color: 'var(--red)' };
-    if (cat === 'habit') return { background: 'var(--blue-bg)', color: 'var(--blue)' };
     return { background: 'var(--bg2)', color: 'var(--ink3)' };
   };
 

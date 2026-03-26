@@ -60,7 +60,6 @@ const DraggableBubbleItem = ({
     switch (cat) {
       case 'positive': return { bg: 'var(--green-bg)', border: 'var(--green-ln)', color: 'var(--green)' };
       case 'negative': return { bg: 'var(--red-bg)', border: 'var(--red-ln)', color: 'var(--red)' };
-      case 'habit': return { bg: 'var(--blue-bg)', border: 'var(--blue-ln)', color: 'var(--blue)' };
       default: return { bg: 'var(--bg)', border: 'var(--rule)', color: 'var(--ink2)' };
     }
   };
@@ -187,10 +186,9 @@ export default function ColumnView({
   onOpenExploreModal,
 }: ColumnViewProps) {
   const categories: { key: Bubble['cat']; label: string }[] = [
-    { key: 'positive', label: 'Growth Areas' },
-    { key: 'negative', label: 'Needs Work' },
-    { key: 'habit', label: 'Habits' },
-    { key: 'neutral', label: 'Neutral' },
+    { key: 'positive', label: 'Positive habits' },
+    { key: 'negative', label: 'Needs work' },
+    { key: 'neutral', label: 'Neutral habits' },
   ];
 
   const getBubblesByCategory = (cat: Bubble['cat']) => {
@@ -226,7 +224,6 @@ export default function ColumnView({
     switch (cat) {
       case 'positive': return 'var(--green)';
       case 'negative': return 'var(--red)';
-      case 'habit': return 'var(--blue)';
       default: return 'var(--ink3)';
     }
   };
@@ -249,7 +246,7 @@ export default function ColumnView({
           </div>
 
           {/* Columns */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {categories.map(({ key, label }) => {
               const categoryBubbles = getBubblesByCategory(key);
               

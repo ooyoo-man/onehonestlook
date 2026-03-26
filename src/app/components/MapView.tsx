@@ -29,13 +29,11 @@ export default function MapView({ bubbles, setBubbles, logs, onOpenNoteModal, on
     neutral: true,
     positive: true,
     negative: true,
-    habit: true,
   });
   const [hiddenCats, setHiddenCats] = useState<Record<Bubble['cat'], boolean>>({
     neutral: false,
     positive: false,
     negative: false,
-    habit: false,
   });
   const canvasRef = useRef<HTMLDivElement>(null);
   const organizeWrapRef = useRef<HTMLDivElement>(null);
@@ -133,7 +131,7 @@ export default function MapView({ bubbles, setBubbles, logs, onOpenNoteModal, on
     }
   };
 
-  const organizeByCategory = (selectedCategories: Bubble['cat'][] = ['positive', 'negative', 'habit', 'neutral']) => {
+  const organizeByCategory = (selectedCategories: Bubble['cat'][] = ['positive', 'negative', 'neutral']) => {
     if (bubbles.length === 0) return;
     if (selectedCategories.length === 0) return;
 
@@ -143,24 +141,22 @@ export default function MapView({ bubbles, setBubbles, logs, onOpenNoteModal, on
     const safeWidth = Math.max(240, width - margin * 2);
     const safeHeight = Math.max(240, height - margin * 2);
 
-    // Four quadrants by category to keep layout consistent and readable.
+    // Three zones: positive + negative on top row; neutral spans full width below.
     const zones: Record<Bubble['cat'], { x: number; y: number; w: number; h: number }> = {
       positive: { x: margin, y: margin, w: safeWidth / 2, h: safeHeight / 2 },
       negative: { x: margin + safeWidth / 2, y: margin, w: safeWidth / 2, h: safeHeight / 2 },
-      habit: { x: margin, y: margin + safeHeight / 2, w: safeWidth / 2, h: safeHeight / 2 },
-      neutral: { x: margin + safeWidth / 2, y: margin + safeHeight / 2, w: safeWidth / 2, h: safeHeight / 2 },
+      neutral: { x: margin, y: margin + safeHeight / 2, w: safeWidth, h: safeHeight / 2 },
     };
 
     const byCat: Record<Bubble['cat'], Bubble[]> = {
       positive: bubbles.filter(b => b.cat === 'positive' && selectedCategories.includes('positive')),
       negative: bubbles.filter(b => b.cat === 'negative' && selectedCategories.includes('negative')),
-      habit: bubbles.filter(b => b.cat === 'habit' && selectedCategories.includes('habit')),
       neutral: bubbles.filter(b => b.cat === 'neutral' && selectedCategories.includes('neutral')),
     };
 
     const positioned: Bubble[] = [];
 
-    (['positive', 'negative', 'habit', 'neutral'] as const).forEach((cat) => {
+    (['positive', 'negative', 'neutral'] as const).forEach((cat) => {
       const items = byCat[cat];
       if (items.length === 0) return;
 
@@ -190,10 +186,10 @@ export default function MapView({ bubbles, setBubbles, logs, onOpenNoteModal, on
   };
 
   const getSelectedOrganizeCats = () =>
-    (['positive', 'negative', 'habit', 'neutral'] as const).filter((cat) => organizeCats[cat]);
+    (['positive', 'negative', 'neutral'] as const).filter((cat) => organizeCats[cat]);
 
   const getSelectedHiddenCats = () =>
-    (['positive', 'negative', 'habit', 'neutral'] as const).filter((cat) => hiddenCats[cat]);
+    (['positive', 'negative', 'neutral'] as const).filter((cat) => hiddenCats[cat]);
 
   const startOrganizeLongPress = () => {
     if (longPressTimerRef.current) window.clearTimeout(longPressTimerRef.current);
@@ -231,7 +227,7 @@ export default function MapView({ bubbles, setBubbles, logs, onOpenNoteModal, on
     total: bubbles.length,
     positive: bubbles.filter(b => b.cat === 'positive').length,
     negative: bubbles.filter(b => b.cat === 'negative').length,
-    habit: bubbles.filter(b => b.cat === 'habit').length,
+    neutral: bubbles.filter(b => b.cat === 'neutral').length,
   };
 
   const shouldRenderMap = viewMode === 'map' || transition?.from === 'map' || transition?.to === 'map';
@@ -397,7 +393,7 @@ export default function MapView({ bubbles, setBubbles, logs, onOpenNoteModal, on
                     <p className="text-[0.74rem] leading-[2.1]" style={{ color: 'var(--ink4)' }}>
                       Add something honest about yourself below.
                       <br />
-                      A habit, a quality, something you want to change.
+                      Every item is a habit—neutral, positive, or needs work.
                     </p>
                   </div>
                 )}
@@ -422,8 +418,8 @@ export default function MapView({ bubbles, setBubbles, logs, onOpenNoteModal, on
                 Needs work: <span className="font-medium" style={{ color: 'var(--ink)' }}>{stats.negative}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: 'var(--blue)' }} />
-                Habits: <span className="font-medium" style={{ color: 'var(--ink)' }}>{stats.habit}</span>
+                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: 'var(--ink4)' }} />
+                Neutral: <span className="font-medium" style={{ color: 'var(--ink)' }}>{stats.neutral}</span>
               </div>
             </div>
 
@@ -448,7 +444,7 @@ export default function MapView({ bubbles, setBubbles, logs, onOpenNoteModal, on
                 }}
               />
               <div className="flex gap-1">
-                {(['neutral', 'positive', 'negative', 'habit'] as const).map(cat => (
+                {(['neutral', 'positive', 'negative'] as const).map(cat => (
                   <button
                     key={cat}
                     onClick={() => setSelectedCat(cat)}
@@ -463,9 +459,7 @@ export default function MapView({ bubbles, setBubbles, logs, onOpenNoteModal, on
                             ? 'var(--bg)'
                             : cat === 'positive'
                             ? 'var(--green-bg)'
-                            : cat === 'negative'
-                            ? 'var(--red-bg)'
-                            : 'var(--blue-bg)'
+                            : 'var(--red-bg)'
                           : 'var(--bg2)',
                       borderColor:
                         selectedCat === cat
@@ -473,9 +467,7 @@ export default function MapView({ bubbles, setBubbles, logs, onOpenNoteModal, on
                             ? 'rgba(30,28,24,0.28)'
                             : cat === 'positive'
                             ? 'var(--green-ln)'
-                            : cat === 'negative'
-                            ? 'var(--red-ln)'
-                            : 'var(--blue-ln)'
+                            : 'var(--red-ln)'
                           : 'var(--rule)',
                       color:
                         selectedCat === cat
@@ -483,39 +475,43 @@ export default function MapView({ bubbles, setBubbles, logs, onOpenNoteModal, on
                             ? 'var(--ink)'
                             : cat === 'positive'
                             ? 'var(--green)'
-                            : cat === 'negative'
-                            ? 'var(--red)'
-                            : 'var(--blue)'
+                            : 'var(--red)'
                           : 'var(--ink3)',
                     }}
                   >
-                    {cat === 'negative' ? 'Needs work' : cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    {cat === 'negative' ? 'Needs work' : cat === 'positive' ? 'Positive' : 'Neutral'}
                   </button>
                 ))}
               </div>
-              <div className="flex gap-1">
-                {([
-                  { key: 'now', label: 'Now' },
-                  { key: 'next', label: 'Next' },
-                  { key: 'later', label: 'Later' },
-                ] as const).map((lane) => (
-                  <button
-                    key={lane.key}
-                    onClick={() => setSelectedLane(lane.key)}
-                    className={`text-[0.66rem] font-medium px-2 py-1 rounded-full border transition-all duration-150 ${
-                      selectedLane === lane.key ? 'shadow-sm' : ''
-                    }`}
-                    style={{
-                      fontFamily: 'var(--font-b)',
-                      background: selectedLane === lane.key ? 'var(--bg)' : 'var(--bg2)',
-                      borderColor: selectedLane === lane.key ? 'rgba(30,28,24,0.24)' : 'var(--rule)',
-                      color: selectedLane === lane.key ? 'var(--ink)' : 'var(--ink3)',
-                    }}
-                    title={`Assign new item to ${lane.label}`}
-                  >
-                    {lane.label}
-                  </button>
-                ))}
+              <div className="flex items-center gap-2">
+                <span className="text-[0.6rem] tracking-[0.08em] uppercase" style={{ color: 'var(--ink4)' }}>
+                  Priority
+                </span>
+                <div className="flex gap-1">
+                  {([
+                    { key: 'now', label: 'Now' },
+                    { key: 'next', label: 'Next' },
+                    { key: 'later', label: 'Later' },
+                  ] as const).map((lane) => (
+                    <button
+                      key={lane.key}
+                      onClick={() => setSelectedLane(lane.key)}
+                      className={`text-[0.66rem] font-medium px-2.5 py-1 rounded-full border transition-all duration-150 ${
+                        selectedLane === lane.key ? 'shadow-sm' : ''
+                      }`}
+                      style={{
+                        fontFamily: 'var(--font-b)',
+                        background: selectedLane === lane.key ? 'var(--bg)' : 'var(--bg2)',
+                        borderColor: selectedLane === lane.key ? 'rgba(30,28,24,0.24)' : 'var(--rule)',
+                        color: selectedLane === lane.key ? 'var(--ink)' : 'var(--ink3)',
+                      }}
+                      aria-pressed={selectedLane === lane.key}
+                      title={`New item priority: ${lane.label}`}
+                    >
+                      {lane.label}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="w-px h-[18px] flex-shrink-0" style={{ background: 'var(--rule)' }} />
               <button
@@ -578,10 +574,9 @@ export default function MapView({ bubbles, setBubbles, logs, onOpenNoteModal, on
                     </div>
                     <div className="flex flex-col gap-1.5 mb-2.5">
                       {([
-                        { key: 'positive', label: 'Positive' },
+                        { key: 'positive', label: 'Positive habits' },
                         { key: 'negative', label: 'Needs work' },
-                        { key: 'habit', label: 'Habits' },
-                        { key: 'neutral', label: 'Neutral' },
+                        { key: 'neutral', label: 'Neutral habits' },
                       ] as const).map((item) => (
                         <button
                           key={item.key}
@@ -656,10 +651,9 @@ export default function MapView({ bubbles, setBubbles, logs, onOpenNoteModal, on
                     </div>
                     <div className="flex flex-col gap-1.5 mb-2.5">
                       {([
-                        { key: 'positive', label: 'Positive' },
+                        { key: 'positive', label: 'Positive habits' },
                         { key: 'negative', label: 'Needs work' },
-                        { key: 'habit', label: 'Habits' },
-                        { key: 'neutral', label: 'Neutral' },
+                        { key: 'neutral', label: 'Neutral habits' },
                       ] as const).map((item) => (
                         <button
                           key={item.key}
@@ -680,7 +674,7 @@ export default function MapView({ bubbles, setBubbles, logs, onOpenNoteModal, on
                     </div>
                     <div className="flex gap-1.5">
                       <button
-                        onClick={() => setHiddenCats({ positive: false, negative: false, habit: false, neutral: false })}
+                        onClick={() => setHiddenCats({ positive: false, negative: false, neutral: false })}
                         className="text-[0.66rem] px-2.5 py-1 rounded-md border transition-all duration-150"
                         style={{ borderColor: 'var(--rule)', background: 'var(--bg)', color: 'var(--ink3)' }}
                       >
@@ -752,8 +746,8 @@ export default function MapView({ bubbles, setBubbles, logs, onOpenNoteModal, on
                   Needs work: <span className="font-medium" style={{ color: 'var(--ink)' }}>{stats.negative}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: 'var(--blue)' }} />
-                  Habits: <span className="font-medium" style={{ color: 'var(--ink)' }}>{stats.habit}</span>
+                  <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: 'var(--ink4)' }} />
+                  Neutral: <span className="font-medium" style={{ color: 'var(--ink)' }}>{stats.neutral}</span>
                 </div>
               </div>
               <button
