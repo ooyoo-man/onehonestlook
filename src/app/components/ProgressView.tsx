@@ -235,7 +235,10 @@ export default function ProgressView({
             </div>
           ) : (
             <div className="space-y-2.5 mb-5">
-              {habitMetrics.map(({ bubble, daysToCount, done, missed, unlogged, consistency, currentStreak }) => (
+              {habitMetrics.map(({ bubble, daysToCount, done, missed, unlogged, consistency, currentStreak }) => {
+                const completedPct =
+                  daysToCount > 0 ? Math.min(100, Math.round((done / daysToCount) * 100)) : 0;
+                return (
                 <div
                   key={bubble.id}
                   className="rounded-[10px] border p-3"
@@ -248,6 +251,35 @@ export default function ProgressView({
                     <div className="text-[0.7rem]" style={{ color: 'var(--ink3)' }}>
                       Streak: <strong style={{ color: 'var(--ink)' }}>{currentStreak}</strong>
                     </div>
+                  </div>
+
+                  <div
+                    className="mt-2.5 flex items-center gap-2.5"
+                    title={`Completed ${done} of ${daysToCount} days in this month`}
+                  >
+                    <div
+                      className="flex-1 min-w-0 h-[7px] rounded-full overflow-hidden border"
+                      style={{ borderColor: 'var(--rule2)', background: 'var(--bg2)' }}
+                      role="progressbar"
+                      aria-valuemin={0}
+                      aria-valuemax={Math.max(daysToCount, 1)}
+                      aria-valuenow={done}
+                      aria-label={`Completed ${done} of ${daysToCount} days this month`}
+                    >
+                      <div
+                        className="h-full rounded-full transition-[width] duration-300 ease-out"
+                        style={{
+                          width: `${completedPct}%`,
+                          background: 'linear-gradient(90deg, rgba(202,166,67,0.95), rgba(202,166,67,0.75))',
+                        }}
+                      />
+                    </div>
+                    <span
+                      className="text-[0.62rem] tabular-nums flex-shrink-0 font-medium"
+                      style={{ color: 'var(--ink3)', fontFamily: 'var(--font-b)' }}
+                    >
+                      {completedPct}%
+                    </span>
                   </div>
 
                   <div className="mt-2 flex items-center gap-3 flex-wrap text-[0.68rem]" style={{ color: 'var(--ink3)' }}>
@@ -265,7 +297,8 @@ export default function ProgressView({
                     </span>
                   </div>
                 </div>
-              ))}
+              );
+              })}
             </div>
           )}
 

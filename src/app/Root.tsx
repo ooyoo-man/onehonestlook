@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { ArchiveSettings, Bubble, Snapshot, Log, IntakeAnswers, FocusSprint, DayReflection } from './types';
+import { ArchiveSettings, Bubble, Snapshot, Log, IntakeAnswers, FocusSprint, JournalEntry } from './types';
 import { useLocalStorage } from './hooks/useLocalStorage';
+import { normalizeJournalRecord } from './utils/journalMigration';
 import Header from './components/Header';
 import MapView from './components/MapView';
 import ProgressView from './components/ProgressView';
 import TodayView from './components/TodayView';
 import ResourcesView from './components/ResourcesView';
-import LearnView from './components/LearnView';
 import ArchiveView from './components/ArchiveView';
 import FocusView from './components/FocusView';
 import SnapshotModal from './components/modals/SnapshotModal';
@@ -16,14 +16,25 @@ import IntakeQuestionnaireModal, { buildStarterBubblesFromIntake } from './compo
 import LoginPage from './components/LoginPage';
 import { getArchivePeriodKey, logKey, todayStr } from './utils/helpers';
 
-type View = 'map' | 'today' | 'focus' | 'progress' | 'archive' | 'resources' | 'learn';
+type View = 'map' | 'today' | 'focus' | 'progress' | 'archive' | 'resources';
 
 export default function Root() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [bubbles, setBubbles] = useLocalStorage<Bubble[]>('ohl3-b', []);
   const [snapshots, setSnapshots] = useLocalStorage<Snapshot[]>('ohl3-s', []);
   const [logs, setLogs] = useLocalStorage<Record<string, Log>>('ohl3-l', {});
-  const [dayReflections, setDayReflections] = useLocalStorage<Record<string, DayReflection>>('ohl3-day-reflections', {});
+  const [journalEntries, setJournalEntries] = useLocalStorage<Record<string, JournalEntry>>(
+    'ohl3-day-reflections',
+    {},
+    {
+      deserialize: (parsed) =>
+        normalizeJournalRecord(
+          typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+            ? (parsed as Record<string, unknown>)
+            : {}
+        ),
+    }
+  );
   const [archiveSettings, setArchiveSettings] = useLocalStorage<ArchiveSettings>('ohl3-archive-settings', {
     autoArchiveEnabled: true,
     cadence: 'monthly',
@@ -126,7 +137,7 @@ export default function Root() {
       bubbles,
       snapshots,
       logs,
-      dayReflections,
+      journalEntries,
       archiveSettings,
       exported: new Date().toISOString(),
     };
@@ -239,14 +250,14 @@ export default function Root() {
           onDeferBubble={(bubbleId, lane) => {
             setBubbles((prev) => prev.map((b) => (b.id === bubbleId ? { ...b, priorityLane: lane } : b)));
           }}
-          todayReflection={dayReflections[todayStr()]}
-          onSaveDayReflection={(whyMediocre, selfForgiveness) => {
+          todayJournal={journalEntries[todayStr()]}
+          onSaveJournal={(body, closing) => {
             const dateStr = todayStr();
-            setDayReflections((prev) => ({
+            setJournalEntries((prev) => ({
               ...prev,
               [dateStr]: {
-                whyMediocre,
-                selfForgiveness,
+                body,
+                closing,
                 updatedAt: new Date().toISOString(),
               },
             }));
@@ -270,12 +281,12 @@ export default function Root() {
           setBubbles={setBubbles}
           archiveSettings={archiveSettings}
           setArchiveSettings={setArchiveSettings}
+          journalEntries={journalEntries}
+          setJournalEntries={setJournalEntries}
         />
       )}
 
       {currentView === 'resources' && <ResourcesView />}
-
-      {currentView === 'learn' && <LearnView />}
 
       <SnapshotModal
         isOpen={showSnapshotModal}

@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
-import { ArchiveSettings, Snapshot } from '../types';
+import type { Dispatch, SetStateAction } from 'react';
+import { ArchiveSettings, JournalEntry, Snapshot } from '../types';
+import { fmtDate } from '../utils/helpers';
 import SnapshotCard from './SnapshotCard';
 
 interface ArchiveViewProps {
@@ -8,6 +10,8 @@ interface ArchiveViewProps {
   setBubbles: (bubbles: Snapshot['bubbles']) => void;
   archiveSettings: ArchiveSettings;
   setArchiveSettings: (settings: ArchiveSettings) => void;
+  journalEntries: Record<string, JournalEntry>;
+  setJournalEntries: Dispatch<SetStateAction<Record<string, JournalEntry>>>;
 }
 
 export default function ArchiveView({
@@ -16,14 +20,29 @@ export default function ArchiveView({
   setBubbles,
   archiveSettings,
   setArchiveSettings,
+  journalEntries,
+  setJournalEntries,
 }: ArchiveViewProps) {
   const [activeYear, setActiveYear] = useState<number | 'all'>('all');
   const [activeSource, setActiveSource] = useState<'all' | 'manual' | 'auto'>('all');
 
   const years = useMemo(() => {
-    const unique = Array.from(new Set(snapshots.map(s => new Date(s.date).getFullYear())));
+    const fromSnaps = snapshots.map((s) => new Date(s.date).getFullYear());
+    const fromJournal = Object.keys(journalEntries).map((d) => new Date(`${d}T12:00:00`).getFullYear());
+    const unique = Array.from(new Set([...fromSnaps, ...fromJournal]));
     return unique.sort((a, b) => b - a);
-  }, [snapshots]);
+  }, [snapshots, journalEntries]);
+
+  const visibleJournalEntries = useMemo(() => {
+    return Object.entries(journalEntries)
+      .filter(([dateStr, entry]) => {
+        const hasContent = entry.body.trim().length > 0 || entry.closing.trim().length > 0;
+        if (!hasContent) return false;
+        const y = new Date(`${dateStr}T12:00:00`).getFullYear();
+        return activeYear === 'all' || y === activeYear;
+      })
+      .sort(([a], [b]) => (a < b ? 1 : a > b ? -1 : 0));
+  }, [journalEntries, activeYear]);
 
   const visibleSnapshots = useMemo(() => {
     return snapshots.filter(s => {
@@ -64,6 +83,16 @@ export default function ArchiveView({
     setBubbles(JSON.parse(JSON.stringify(snap.bubbles)));
   };
 
+  const deleteJournalEntry = (dateStr: string) => {
+    const label = fmtDate(new Date(`${dateStr}T12:00:00`));
+    if (!window.confirm(`Remove the journal entry for ${label}?`)) return;
+    setJournalEntries((prev) => {
+      const next = { ...prev };
+      delete next[dateStr];
+      return next;
+    });
+  };
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="flex-1 overflow-y-auto px-8 py-7 pb-12">
@@ -73,7 +102,7 @@ export default function ArchiveView({
               Archive
             </div>
             <div className="text-[0.72rem] leading-relaxed mt-1" style={{ color: 'var(--ink3)' }}>
-              Long-term history of your map and habits over the years.
+              Long-term history of your map, private journal, and habits over the years.
             </div>
           </div>
 
@@ -212,6 +241,81 @@ export default function ArchiveView({
               </button>
             ))}
           </div>
+
+          <section className="mb-8">
+            <div
+              className="text-[0.72rem] font-medium tracking-[0.12em] uppercase mb-3"
+              style={{ color: 'var(--ink3)' }}
+            >
+              Private journal
+            </div>
+            <p className="text-[0.68rem] leading-relaxed mb-3" style={{ color: 'var(--ink4)' }}>
+              Daily entries from Today, newest first. Use the year filters above to narrow the list.
+            </p>
+            {visibleJournalEntries.length === 0 ? (
+              <div
+                className="rounded-[10px] border px-4 py-6 text-center text-[0.72rem]"
+                style={{ background: 'var(--bg2)', borderColor: 'var(--rule)', color: 'var(--ink3)' }}
+              >
+                No journal entries for this filter yet.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {visibleJournalEntries.map(([dateStr, entry]) => (
+                  <article
+                    key={dateStr}
+                    className="rounded-[10px] border p-4"
+                    style={{ background: 'var(--bg)', borderColor: 'var(--rule)' }}
+                  >
+                    <div className="flex items-start justify-between gap-3 flex-wrap mb-2">
+                      <div
+                        className="text-[0.72rem] font-medium"
+                        style={{ color: 'var(--ink)', fontFamily: 'var(--font-b)' }}
+                      >
+                        {fmtDate(new Date(`${dateStr}T12:00:00`))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => deleteJournalEntry(dateStr)}
+                        className="text-[0.64rem] underline underline-offset-2 hover:opacity-80 bg-transparent border-0 cursor-pointer p-0"
+                        style={{ color: 'var(--ink4)', fontFamily: 'var(--font-b)' }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    {entry.body.trim().length > 0 && (
+                      <p
+                        className="text-[0.74rem] leading-[1.75] whitespace-pre-wrap"
+                        style={{ color: 'var(--ink2)' }}
+                      >
+                        {entry.body}
+                      </p>
+                    )}
+                    {entry.closing.trim().length > 0 && (
+                      <p
+                        className="text-[0.7rem] leading-[1.7] mt-2.5 pt-2.5 whitespace-pre-wrap border-t"
+                        style={{ color: 'var(--ink3)', borderColor: 'var(--rule2)' }}
+                      >
+                        {entry.closing}
+                      </p>
+                    )}
+                    {entry.updatedAt && (
+                      <div className="text-[0.6rem] mt-2" style={{ color: 'var(--ink4)' }}>
+                        Saved{' '}
+                        {new Date(entry.updatedAt).toLocaleString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        })}
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
 
           {groupedByYear.length === 0 ? (
             <div className="text-center py-12" style={{ color: 'var(--ink3)' }}>

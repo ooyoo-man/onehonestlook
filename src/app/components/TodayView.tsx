@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bubble, DayReflection, Log } from '../types';
+import { Bubble, JournalEntry, Log } from '../types';
 import { fmtDate, logKey, todayStr } from '../utils/helpers';
 
 interface TodayViewProps {
@@ -10,8 +10,8 @@ interface TodayViewProps {
   onGoToFocus: () => void;
   onOpenInMap: (bubbleId: number) => void;
   onDeferBubble: (bubbleId: number, lane: 'next' | 'later') => void;
-  todayReflection?: DayReflection;
-  onSaveDayReflection: (whyMediocre: string, selfForgiveness: string) => void;
+  todayJournal?: JournalEntry;
+  onSaveJournal: (body: string, closing: string) => void;
 }
 
 const MAX_NOW = 3;
@@ -24,24 +24,24 @@ export default function TodayView({
   onGoToFocus,
   onOpenInMap,
   onDeferBubble,
-  todayReflection,
-  onSaveDayReflection,
+  todayJournal,
+  onSaveJournal,
 }: TodayViewProps) {
   const todayISO = todayStr();
   const todayDate = new Date(todayISO + 'T12:00:00');
 
-  const [whyMediocre, setWhyMediocre] = useState('');
-  const [selfForgiveness, setSelfForgiveness] = useState('');
+  const [journalBody, setJournalBody] = useState('');
+  const [journalClosing, setJournalClosing] = useState('');
   const [justSaved, setJustSaved] = useState(false);
-  const [reflectionOpen, setReflectionOpen] = useState(false);
+  const [journalOpen, setJournalOpen] = useState(false);
 
   useEffect(() => {
-    setWhyMediocre(todayReflection?.whyMediocre ?? '');
-    setSelfForgiveness(todayReflection?.selfForgiveness ?? '');
-  }, [todayISO, todayReflection?.updatedAt]);
+    setJournalBody(todayJournal?.body ?? '');
+    setJournalClosing(todayJournal?.closing ?? '');
+  }, [todayISO, todayJournal?.updatedAt]);
 
   useEffect(() => {
-    setReflectionOpen(false);
+    setJournalOpen(false);
   }, [todayISO]);
 
   const nowItems = bubbles.filter((b) => (b.priorityLane ?? 'later') === 'now');
@@ -50,15 +50,14 @@ export default function TodayView({
     return !entry || entry.yn === null;
   });
 
-  const handleSaveReflection = () => {
-    onSaveDayReflection(whyMediocre.trim(), selfForgiveness.trim());
+  const handleSaveJournal = () => {
+    onSaveJournal(journalBody.trim(), journalClosing.trim());
     setJustSaved(true);
     window.setTimeout(() => setJustSaved(false), 2400);
   };
 
-  const hasReflectionText = whyMediocre.trim().length > 0 || selfForgiveness.trim().length > 0;
-  const hasPersistedReflection =
-    !!(todayReflection?.whyMediocre?.trim() || todayReflection?.selfForgiveness?.trim());
+  const hasJournalDraft = journalBody.trim().length > 0 || journalClosing.trim().length > 0;
+  const hasPersistedJournal = !!(todayJournal?.body?.trim() || todayJournal?.closing?.trim());
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -89,27 +88,28 @@ export default function TodayView({
           </div>
 
           <div className="mb-8">
-            {!reflectionOpen ? (
+            {!journalOpen ? (
               <div
                 className="rounded-[10px] border px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
                 style={{ background: 'var(--bg2)', borderColor: 'var(--rule)' }}
               >
                 <div className="min-w-0">
                   <div className="text-[0.72rem] font-medium" style={{ color: 'var(--ink2)', fontFamily: 'var(--font-b)' }}>
-                    Today feels mediocre or heavy?
+                    Private journal
                   </div>
                   <p className="text-[0.65rem] leading-relaxed mt-1" style={{ color: 'var(--ink4)' }}>
-                    Optional private check-in—only if you need it. Doesn&apos;t affect your map or streaks.
-                    {hasPersistedReflection ? (
+                    A free-form space for today—thoughts, wins, friction, or anything you want to remember. Stays on this
+                    device; browse past days in Archive.
+                    {hasPersistedJournal ? (
                       <span className="block mt-1" style={{ color: 'var(--ink3)' }}>
-                        You have a saved reflection for today.
+                        You have a saved entry for today.
                       </span>
                     ) : null}
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setReflectionOpen(true)}
+                  onClick={() => setJournalOpen(true)}
                   className="text-[0.72rem] font-medium px-3.5 py-2 rounded-md border transition-all duration-150 hover:opacity-90 flex-shrink-0 self-start sm:self-center"
                   style={{
                     fontFamily: 'var(--font-b)',
@@ -118,7 +118,7 @@ export default function TodayView({
                     color: 'var(--ink)',
                   }}
                 >
-                  {hasPersistedReflection ? 'Open reflection' : 'Write something'}
+                  {hasPersistedJournal ? 'Open journal' : 'Write something'}
                 </button>
               </div>
             ) : (
@@ -128,11 +128,11 @@ export default function TodayView({
               >
                 <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
                   <div className="text-[0.72rem] font-medium" style={{ color: 'var(--ink2)', fontFamily: 'var(--font-b)' }}>
-                    If today feels mediocre
+                    Today&apos;s journal
                   </div>
                   <button
                     type="button"
-                    onClick={() => setReflectionOpen(false)}
+                    onClick={() => setJournalOpen(false)}
                     className="text-[0.66rem] underline underline-offset-2 hover:opacity-80 bg-transparent border-0 cursor-pointer p-0"
                     style={{ color: 'var(--ink4)', fontFamily: 'var(--font-b)' }}
                   >
@@ -140,19 +140,18 @@ export default function TodayView({
                   </button>
                 </div>
                 <p className="text-[0.7rem] leading-[1.75] mb-4" style={{ color: 'var(--ink3)' }}>
-                  A single day does not define you. What moves habits and goals forward is usually the quiet accumulation of
-                  many days—showing up, adjusting, and trying again. Naming a hard day is honest; it does not cancel the
-                  pattern you have been building.
+                  Write in your own voice. Entries are stored by date so you can scroll back later in Archive like a simple
+                  diary—no prompts required unless you want them.
                 </p>
 
                 <label className="block text-[0.62rem] tracking-[0.08em] uppercase mb-1.5" style={{ color: 'var(--ink4)' }}>
-                  Why does today feel &ldquo;meh&rdquo; or heavy? (private)
+                  Entry (private)
                 </label>
                 <textarea
-                  value={whyMediocre}
-                  onChange={(e) => setWhyMediocre(e.target.value)}
-                  rows={3}
-                  placeholder="Tired, distracted, old story lines, something specific…"
+                  value={journalBody}
+                  onChange={(e) => setJournalBody(e.target.value)}
+                  rows={4}
+                  placeholder="What happened today, what you noticed, what you’re carrying…"
                   className="w-full text-[0.72rem] px-3 py-2 rounded-md border outline-none resize-y mb-4"
                   style={{
                     borderColor: 'var(--rule)',
@@ -163,13 +162,13 @@ export default function TodayView({
                 />
 
                 <label className="block text-[0.62rem] tracking-[0.08em] uppercase mb-1.5" style={{ color: 'var(--ink4)' }}>
-                  What do you want to forgive yourself for—or offer yourself—today?
+                  Closing or afterthought (optional)
                 </label>
                 <textarea
-                  value={selfForgiveness}
-                  onChange={(e) => setSelfForgiveness(e.target.value)}
-                  rows={3}
-                  placeholder="A sentence of compassion, permission to be human, or what you’ll try tomorrow instead…"
+                  value={journalClosing}
+                  onChange={(e) => setJournalClosing(e.target.value)}
+                  rows={2}
+                  placeholder="One line you want to leave yourself with…"
                   className="w-full text-[0.72rem] px-3 py-2 rounded-md border outline-none resize-y mb-3"
                   style={{
                     borderColor: 'var(--rule)',
@@ -182,7 +181,7 @@ export default function TodayView({
                 <div className="flex items-center gap-3 flex-wrap">
                   <button
                     type="button"
-                    onClick={handleSaveReflection}
+                    onClick={handleSaveJournal}
                     className="text-[0.72rem] font-medium px-3 py-1.5 rounded-md border transition-all duration-150 hover:opacity-90"
                     style={{
                       fontFamily: 'var(--font-b)',
@@ -191,24 +190,24 @@ export default function TodayView({
                       color: 'var(--ink)',
                     }}
                   >
-                    Save today&apos;s reflection
+                    Save today&apos;s entry
                   </button>
                   {justSaved && (
                     <span className="text-[0.65rem]" style={{ color: 'var(--green)' }}>
                       Saved for this day
                     </span>
                   )}
-                  {!justSaved && todayReflection?.updatedAt && (
+                  {!justSaved && todayJournal?.updatedAt && (
                     <span className="text-[0.62rem]" style={{ color: 'var(--ink4)' }}>
                       Last saved{' '}
-                      {new Date(todayReflection.updatedAt).toLocaleTimeString(undefined, {
+                      {new Date(todayJournal.updatedAt).toLocaleTimeString(undefined, {
                         hour: 'numeric',
                         minute: '2-digit',
                       })}
                     </span>
                   )}
                 </div>
-                {!hasReflectionText && (
+                {!hasJournalDraft && (
                   <p className="text-[0.62rem] mt-3 leading-relaxed" style={{ color: 'var(--ink4)' }}>
                     Nothing here is required. When you&apos;re done, use Hide above to tuck this away.
                   </p>

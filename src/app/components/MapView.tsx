@@ -13,9 +13,24 @@ interface MapViewProps {
   onOpenExploreModal: (bubble: Bubble) => void;
 }
 
+const MAX_NOW_LANE = 3;
+
+const LANE_SORT_ORDER: Record<'now' | 'next' | 'later', number> = {
+  now: 0,
+  next: 1,
+  later: 2,
+};
+
+function sortBubblesByLaneThenLabel(a: Bubble, b: Bubble): number {
+  const la = (a.priorityLane ?? 'later') as 'now' | 'next' | 'later';
+  const lb = (b.priorityLane ?? 'later') as 'now' | 'next' | 'later';
+  const d = LANE_SORT_ORDER[la] - LANE_SORT_ORDER[lb];
+  if (d !== 0) return d;
+  return a.label.localeCompare(b.label, undefined, { sensitivity: 'base' });
+}
+
 export default function MapView({ bubbles, setBubbles, logs, onOpenNoteModal, onOpenExploreModal }: MapViewProps) {
   const [selectedCat, setSelectedCat] = useState<Bubble['cat']>('neutral');
-  const [selectedLane, setSelectedLane] = useState<'now' | 'next' | 'later'>('later');
   const [inputValue, setInputValue] = useState('');
   const [viewMode, setViewMode] = useState<'map' | 'columns'>('map');
   const [transition, setTransition] = useState<{
@@ -104,7 +119,7 @@ export default function MapView({ bubbles, setBubbles, logs, onOpenNoteModal, on
       id: Date.now() + Math.random(),
       label,
       cat: selectedCat,
-      priorityLane: selectedLane,
+      priorityLane: 'later',
       x,
       y,
     };
@@ -115,6 +130,24 @@ export default function MapView({ bubbles, setBubbles, logs, onOpenNoteModal, on
 
   const removeBubble = (id: number) => {
     setBubbles(bubbles.filter(b => b.id !== id));
+  };
+
+  const setBubbleLane = (id: number, lane: 'now' | 'next' | 'later') => {
+    setBubbles((prev) => {
+      if (!prev.some((b) => b.id === id)) return prev;
+      if (lane === 'now') {
+        const nowCount = prev.filter(
+          (b) => (b.priorityLane ?? 'later') === 'now' && b.id !== id
+        ).length;
+        if (nowCount >= MAX_NOW_LANE) {
+          window.alert(
+            'Now is full (3 items). Move something to Next or Later first—here or in Focus.'
+          );
+          return prev;
+        }
+      }
+      return prev.map((b) => (b.id === id ? { ...b, priorityLane: lane } : b));
+    });
   };
 
   const updateBubblePosition = (id: number, x: number, y: number) => {
@@ -141,7 +174,8 @@ export default function MapView({ bubbles, setBubbles, logs, onOpenNoteModal, on
     const safeWidth = Math.max(240, width - margin * 2);
     const safeHeight = Math.max(240, height - margin * 2);
 
-    // Three zones: positive + negative on top row; neutral spans full width below.
+    // Three zones by habit type: positive + negative on top row; neutral full width below.
+    // Within each zone, bubbles are gridded in priority order: Now → Next → Later, then label.
     const zones: Record<Bubble['cat'], { x: number; y: number; w: number; h: number }> = {
       positive: { x: margin, y: margin, w: safeWidth / 2, h: safeHeight / 2 },
       negative: { x: margin + safeWidth / 2, y: margin, w: safeWidth / 2, h: safeHeight / 2 },
@@ -160,13 +194,16 @@ export default function MapView({ bubbles, setBubbles, logs, onOpenNoteModal, on
       const items = byCat[cat];
       if (items.length === 0) return;
 
+      // Within each habit type: Now first, then Next, then Later; tie-break by label.
+      const sorted = [...items].sort(sortBubblesByLaneThenLabel);
+
       const zone = zones[cat];
-      const cols = Math.max(1, Math.ceil(Math.sqrt(items.length)));
-      const rows = Math.max(1, Math.ceil(items.length / cols));
+      const cols = Math.max(1, Math.ceil(Math.sqrt(sorted.length)));
+      const rows = Math.max(1, Math.ceil(sorted.length / cols));
       const stepX = zone.w / cols;
       const stepY = zone.h / rows;
 
-      items.forEach((bubble, idx) => {
+      sorted.forEach((bubble, idx) => {
         const col = idx % cols;
         const row = Math.floor(idx / cols);
         const x = zone.x + stepX * (col + 0.5);
@@ -376,6 +413,7 @@ export default function MapView({ bubbles, setBubbles, logs, onOpenNoteModal, on
                     onUpdatePosition={updateBubblePosition}
                     onOpenNote={onOpenNoteModal}
                     onOpenExplore={onOpenExploreModal}
+                    onSetLane={setBubbleLane}
                     canvasRef={canvasRef}
                   />
                 ))}
@@ -394,6 +432,8 @@ export default function MapView({ bubbles, setBubbles, logs, onOpenNoteModal, on
                       Add something honest about yourself below.
                       <br />
                       Every item is a habit—neutral, positive, or needs work.
+                      <br />
+                      Set <strong style={{ color: 'var(--ink3)' }}>Now / Next / Later</strong> on each bubble (same as Focus).
                     </p>
                   </div>
                 )}
@@ -483,36 +523,6 @@ export default function MapView({ bubbles, setBubbles, logs, onOpenNoteModal, on
                   </button>
                 ))}
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[0.6rem] tracking-[0.08em] uppercase" style={{ color: 'var(--ink4)' }}>
-                  Priority
-                </span>
-                <div className="flex gap-1">
-                  {([
-                    { key: 'now', label: 'Now' },
-                    { key: 'next', label: 'Next' },
-                    { key: 'later', label: 'Later' },
-                  ] as const).map((lane) => (
-                    <button
-                      key={lane.key}
-                      onClick={() => setSelectedLane(lane.key)}
-                      className={`text-[0.66rem] font-medium px-2.5 py-1 rounded-full border transition-all duration-150 ${
-                        selectedLane === lane.key ? 'shadow-sm' : ''
-                      }`}
-                      style={{
-                        fontFamily: 'var(--font-b)',
-                        background: selectedLane === lane.key ? 'var(--bg)' : 'var(--bg2)',
-                        borderColor: selectedLane === lane.key ? 'rgba(30,28,24,0.24)' : 'var(--rule)',
-                        color: selectedLane === lane.key ? 'var(--ink)' : 'var(--ink3)',
-                      }}
-                      aria-pressed={selectedLane === lane.key}
-                      title={`New item priority: ${lane.label}`}
-                    >
-                      {lane.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
               <div className="w-px h-[18px] flex-shrink-0" style={{ background: 'var(--rule)' }} />
               <button
                 onClick={addBubble}
@@ -558,7 +568,7 @@ export default function MapView({ bubbles, setBubbles, logs, onOpenNoteModal, on
                     background: 'var(--bg)',
                     color: 'var(--ink2)',
                   }}
-                  title="Click: organize selected categories. Long-press: choose categories."
+                  title="Click: arrange by habit type, then Now → Next → Later within each zone. Long-press: choose categories."
                 >
                   <WandSparkles className="w-3.5 h-3.5" />
                   Organize

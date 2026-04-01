@@ -27,10 +27,11 @@ export interface Log {
   note: string;
 }
 
-/** Private same-day check-in: why the day felt hard + self-forgiveness (stored locally by date). */
-export interface DayReflection {
-  whyMediocre: string;
-  selfForgiveness: string;
+/** Private journal entry for a calendar day (Today + Archive). */
+export interface JournalEntry {
+  body: string;
+  /** Optional closing line or afterthought */
+  closing: string;
   updatedAt: string;
 }
 
